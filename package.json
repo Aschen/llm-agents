@@ -2,9 +2,10 @@
   "name": "llm-agents",
   "version": "1.0.0",
   "description": "LLM Agent framework for Node.js",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "build": "npx tsc",
+    "build": "rm -rf dist/ && npx tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Aschen",
@@ -17,5 +18,8 @@
   },
   "optionalDependencies": {
     "@aws-sdk/client-s3": "^3.433.0"
-  }
+  },
+  "files": [
+    "dist/"
+  ]
 }

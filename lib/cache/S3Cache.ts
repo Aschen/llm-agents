@@ -24,12 +24,14 @@ export type S3CacheOptions = {
   bucket: string;
   region: string;
   endpoint?: string;
+  cacheDir?: string;
 };
 
 /**
  * Initialize a S3 cache engine
  */
 export class S3Cache extends CacheEngine {
+  private cacheDir: string;
   private bucket: string;
   private s3: S3Client;
 
@@ -42,10 +44,16 @@ export class S3Cache extends CacheEngine {
    *
    * @example new S3Cache({ bucket: "audio-cache", ...S3CacheOptionsScaleway["fr-par"] })
    */
-  constructor({ bucket, region, endpoint }: S3CacheOptions) {
+  constructor({
+    bucket,
+    region,
+    endpoint,
+    cacheDir = "cache",
+  }: S3CacheOptions) {
     super();
 
     this.bucket = bucket;
+    this.cacheDir = cacheDir;
 
     this.s3 = new S3Client({
       region,
@@ -61,7 +69,7 @@ export class S3Cache extends CacheEngine {
   public async get(cacheKey: string) {
     const command = new GetObjectCommand({
       Bucket: this.bucket,
-      Key: cacheKey,
+      Key: this.fullKey(cacheKey),
     });
 
     const response = await this.s3.send(command);
@@ -74,7 +82,7 @@ export class S3Cache extends CacheEngine {
   public async has(cacheKey: string) {
     const command = new HeadObjectCommand({
       Bucket: this.bucket,
-      Key: cacheKey,
+      Key: this.fullKey(cacheKey),
     });
 
     try {
@@ -89,7 +97,7 @@ export class S3Cache extends CacheEngine {
     const command = new PutObjectCommand({
       Bucket: this.bucket,
       Body: content,
-      Key: cacheKey,
+      Key: this.fullKey(cacheKey),
     });
 
     await this.s3.send(command);
@@ -98,9 +106,13 @@ export class S3Cache extends CacheEngine {
   public async delete(cacheKey: string) {
     const command = new DeleteObjectCommand({
       Bucket: this.bucket,
-      Key: cacheKey,
+      Key: this.fullKey(cacheKey),
     });
 
     await this.s3.send(command);
+  }
+
+  private fullKey(cacheKey: string) {
+    return `${this.cacheDir}/${cacheKey}`;
   }
 }

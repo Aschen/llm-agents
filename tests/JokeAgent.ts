@@ -1,5 +1,5 @@
 import { PromptTemplate } from "langchain/prompts";
-import { Agent } from "../lib/agents/Agent";
+import { Agent } from "../lib/Agent";
 import { FileCache } from "../lib/cache/FileCache";
 
 class JokeAgent extends Agent {

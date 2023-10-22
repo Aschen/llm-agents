@@ -3,7 +3,7 @@ import * as Path from "node:path";
 import { OpenAI } from "langchain/llms/openai";
 import { PromptTemplate } from "langchain/prompts";
 
-import { CacheEngine } from "../cache/CacheEngine";
+import { CacheEngine } from "./cache/CacheEngine";
 
 function kebabCase(str) {
   return str
@@ -65,7 +65,7 @@ export abstract class Agent<TOutput = any> {
   abstract run(): Promise<TOutput>;
 
   constructor({ verbose, cacheEngine }: AgentOptions) {
-    this.verbose = verbose || true;
+    this.verbose = verbose || false;
     this.cacheEngine = cacheEngine || null;
 
     this.characters = {
@@ -100,7 +100,7 @@ export abstract class Agent<TOutput = any> {
 
       const cached = await this.cacheEngine.tryGet(cacheKey);
       if (cached) {
-        this.log("Using cached answer");
+        this.log(`Using cached answer "${cacheKey}"`);
         return cached;
       }
     }
@@ -122,7 +122,7 @@ export abstract class Agent<TOutput = any> {
       );
       await this.cacheEngine.set(
         Path.join(this.cacheDir, `answer-${promptHash}.txt`),
-        prompt
+        answer
       );
     }
 
@@ -141,5 +141,39 @@ export abstract class Agent<TOutput = any> {
     this.log(`Cache activated: ${this.cacheDir}`);
 
     this.cacheInitialized = true;
+  }
+
+  protected extractActions(answer: string) {
+    const actions: Array<{ name: string; parameters: any }> = [];
+
+    const actionRegex = /<Action\s+name="([^"]+)">(.*?)<\/Action>/gs;
+    let match;
+
+    while ((match = actionRegex.exec(answer)) !== null) {
+      const actionName = match[1];
+      const actionContent = match[2];
+
+      const action: { name: string; parameters: any } = {
+        name: actionName,
+        parameters: {},
+      };
+
+      const parameterRegex = /<Parameter\s+name="([^"]+)">(.*?)<\/Parameter>/gs;
+      let parameterMatch;
+
+      while ((parameterMatch = parameterRegex.exec(actionContent)) !== null) {
+        const paramName = parameterMatch[1];
+        const paramValue = parameterMatch[2];
+        action.parameters[paramName] = paramValue.replace(/\r?\n/g, "").trim();
+      }
+
+      actions.push(action);
+    }
+
+    if (actions.length === 0) {
+      throw new Error("Incorrect answer format. Cannot parse actions.");
+    }
+
+    return actions;
   }
 }
