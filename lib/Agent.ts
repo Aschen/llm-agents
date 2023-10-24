@@ -4,6 +4,8 @@ import { OpenAI } from "langchain/llms/openai";
 import { PromptTemplate } from "langchain/prompts";
 
 import { CacheEngine } from "./cache/CacheEngine";
+import { Action, ActionFeedback } from "./Action";
+import { DoneAction } from "./DoneAction";
 
 function kebabCase(str) {
   return str
@@ -14,6 +16,7 @@ function kebabCase(str) {
 }
 
 export type AgentOptions = {
+  actions?: Action[];
   verbose?: boolean;
   cacheEngine?: CacheEngine;
 };
@@ -30,14 +33,16 @@ const MODELS_COST = {
 } as const;
 
 export abstract class Agent<TOutput = any> {
-  private cacheInitialized = false;
+  protected cacheInitialized = false;
+
+  private actions: Action[];
 
   protected verbose: boolean;
   protected cacheEngine: CacheEngine | null;
   protected cacheHash: string;
   protected cacheDir: string;
 
-  public characters: {
+  public tokens: {
     input: number;
     output: number;
   };
@@ -45,9 +50,9 @@ export abstract class Agent<TOutput = any> {
 
   protected abstract template: PromptTemplate;
 
-  private models = new Map<keyof typeof MODELS_COST, OpenAI>();
+  protected models = new Map<keyof typeof MODELS_COST, OpenAI>();
 
-  private model(name: keyof typeof MODELS_COST): OpenAI {
+  protected model(name: keyof typeof MODELS_COST): OpenAI {
     if (!this.models.has(name)) {
       this.models.set(
         name,
@@ -64,11 +69,12 @@ export abstract class Agent<TOutput = any> {
 
   abstract run(): Promise<TOutput>;
 
-  constructor({ verbose, cacheEngine }: AgentOptions) {
+  constructor({ actions = [], verbose, cacheEngine }: AgentOptions) {
+    this.actions = [...actions, new DoneAction()];
     this.verbose = verbose || false;
     this.cacheEngine = cacheEngine || null;
 
-    this.characters = {
+    this.tokens = {
       input: 0,
       output: 0,
     };
@@ -95,7 +101,7 @@ export abstract class Agent<TOutput = any> {
 
       const cacheKey = Path.join(
         this.cacheDir,
-        `answer-${this.cacheEngine.hash(prompt)}.txt`
+        `${this.cacheEngine.hash(prompt)}-answer.txt`
       );
 
       const cached = await this.cacheEngine.tryGet(cacheKey);
@@ -104,12 +110,14 @@ export abstract class Agent<TOutput = any> {
         return cached;
       }
     }
-
     const answer = await this.model(model).call(prompt);
-    this.characters.input += prompt.length;
-    this.characters.output += answer.length;
-    this.cost += MODELS_COST[model].input * (prompt.length / 3 / 1000);
-    this.cost += MODELS_COST[model].output * (answer.length / 3 / 1000);
+
+    const promptTokens = await this.model(model).getNumTokens(prompt);
+    const answerTokens = await this.model(model).getNumTokens(answer);
+    this.tokens.input += promptTokens;
+    this.tokens.output += answerTokens;
+    this.cost += MODELS_COST[model].input * (promptTokens / 1000);
+    this.cost += MODELS_COST[model].output * (answerTokens / 1000);
 
     if (this.cacheEngine && cache) {
       const promptHash = this.cacheEngine.hash(prompt);
@@ -117,11 +125,11 @@ export abstract class Agent<TOutput = any> {
       this.log(`Caching prompt and answer ${promptHash}`);
 
       await this.cacheEngine.set(
-        Path.join(this.cacheDir, `prompt-${promptHash}.txt`),
+        Path.join(this.cacheDir, `${promptHash}-prompt.txt`),
         prompt
       );
       await this.cacheEngine.set(
-        Path.join(this.cacheDir, `answer-${promptHash}.txt`),
+        Path.join(this.cacheDir, `${promptHash}-answer.txt`),
         answer
       );
     }
@@ -131,6 +139,7 @@ export abstract class Agent<TOutput = any> {
 
   private initCache() {
     if (this.cacheInitialized || this.cacheEngine === null) {
+      this.log(`Cache activated: ${this.cacheDir}`);
       return;
     }
 
@@ -175,5 +184,28 @@ export abstract class Agent<TOutput = any> {
     }
 
     return actions;
+  }
+
+  protected async executeAction({
+    name,
+    parameters,
+  }: {
+    name: string;
+    parameters: Record<string, string>;
+  }): Promise<ActionFeedback> {
+    const action = this.actions.find((action) => action.name === name);
+
+    if (!action) {
+      return {
+        message: `Action "${name}" not found`,
+        type: "error",
+      };
+    }
+
+    return action.execute(parameters);
+  }
+
+  protected describeActions(): string {
+    return this.actions.map((action) => action.describe).join("\n");
   }
 }
