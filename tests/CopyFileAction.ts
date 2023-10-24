@@ -1,6 +1,6 @@
 import { execSync } from "child_process";
 
-import { Action, ActionFeedback } from "../lib/Action";
+import { Action, ActionFeedback } from "../lib/actions/Action";
 
 type CopyFileActionParametersNames = "source" | "destination";
 

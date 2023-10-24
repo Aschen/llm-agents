@@ -4,8 +4,8 @@ import { OpenAI } from "langchain/llms/openai";
 import { PromptTemplate } from "langchain/prompts";
 
 import { CacheEngine } from "./cache/CacheEngine";
-import { Action, ActionFeedback } from "./Action";
-import { DoneAction } from "./DoneAction";
+import { Action, ActionFeedback } from "./actions/Action";
+import { DoneAction } from "./actions/DoneAction";
 
 function kebabCase(str) {
   return str

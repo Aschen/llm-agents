@@ -2,7 +2,7 @@ import { PromptTemplate } from "langchain/prompts";
 
 import { Agent } from "../lib/Agent";
 import { FileCache } from "../lib/cache/FileCache";
-import { Action, ActionFeedback } from "../lib/Action";
+import { Action } from "../lib/actions/Action";
 
 import { ExecuteShellCommandAction } from "./ExecuteShellCommandAction";
 import { CopyFileAction } from "./CopyFileAction";
