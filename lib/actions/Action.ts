@@ -18,13 +18,17 @@ export abstract class Action<TParametersNames extends string = any> {
    */
   private feedbackSizeLimit: number;
   private feedbackSizeLimitMessage: string;
+  private verbose: boolean;
+  private format: "singleline" | "multiline";
 
   constructor({
     name,
     usage,
     parameters,
+    format = "singleline",
     feedbackSizeLimit = 500,
     feedbackSizeLimitMessage = "action feedback was truncated because it exceeded the size limit",
+    verbose = true,
   }: {
     name: string;
     usage: string;
@@ -34,13 +38,17 @@ export abstract class Action<TParametersNames extends string = any> {
      */
     feedbackSizeLimit?: number;
     feedbackSizeLimitMessage?: string;
+    verbose?: boolean;
+    format: "singleline" | "multiline";
   }) {
     this.name = name;
     this.usage = usage;
     this.parameters = parameters;
+    this.format = format;
 
     this.feedbackSizeLimit = feedbackSizeLimit * 4;
     this.feedbackSizeLimitMessage = feedbackSizeLimitMessage;
+    this.verbose = verbose;
   }
 
   protected abstract executeAction(
@@ -65,13 +73,53 @@ export abstract class Action<TParametersNames extends string = any> {
   }
 
   get describe(): string {
+    if (this.format === "singleline") {
+      return this.describeSingleLine;
+    }
+
+    return this.describeMultiLine;
+  }
+
+  private get describeMultiLine(): string {
     let result = `Use this action to: ${this.usage}\n<Action name="${this.name}">`;
+
     result +=
       '\n  <Thought explanation="<explain here why you need to execute the action>"/>';
+
     for (const param of this.parameters) {
       result += `\n  <Parameter name="${param.name}">\n    // ${param.usage}\n  </Parameter>`;
     }
+
     result += "\n</Action>";
+
     return result;
+  }
+
+  private get describeSingleLine(): string {
+    let result = `<Action thought="<explain here why you need to execute the action>" name="${this.name}"`;
+
+    for (const param of this.parameters) {
+      result += ` parameter:${param.name}="<${param.usage}>"`;
+    }
+
+    result += " />";
+
+    return result;
+  }
+
+  describeFeedback({ feedback }: { feedback: ActionFeedback }): string {
+    let result = `  <Action name="${this.name}">`;
+    for (const param of this.parameters) {
+      result += `\n    <Parameter name="${param.name}">\n      // ${param.usage}\n    </Parameter>`;
+    }
+    result += `\n    <Feedback type="${feedback.type}">\n      // ${feedback.message}\n    </Feedback>`;
+    result += "\n  </Action>";
+    return result;
+  }
+
+  protected log(...chunks: string[]) {
+    if (this.verbose) {
+      console.log(...chunks.map((c) => `${this.constructor.name}: ${c}`));
+    }
   }
 }

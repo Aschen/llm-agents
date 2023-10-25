@@ -7,6 +7,8 @@ import { CacheEngine } from "./cache/CacheEngine";
 import { Action, ActionFeedback } from "./actions/Action";
 import { DoneAction } from "./actions/DoneAction";
 
+const LOCAL_DEBUG = process.env.NODE_ENV !== "production";
+
 function kebabCase(str) {
   return str
     .replace(/[^a-zA-Z0-9]/g, "")
@@ -19,6 +21,7 @@ export type AgentOptions = {
   actions?: Action[];
   verbose?: boolean;
   cacheEngine?: CacheEngine;
+  localDebug?: boolean;
 };
 
 const MODELS_COST = {
@@ -34,6 +37,8 @@ const MODELS_COST = {
 
 export abstract class Agent<TOutput = any> {
   protected cacheInitialized = false;
+  protected localDebug: boolean;
+  protected localStep = -1;
 
   private actions: Action[];
 
@@ -69,10 +74,16 @@ export abstract class Agent<TOutput = any> {
 
   abstract run(): Promise<TOutput>;
 
-  constructor({ actions = [], verbose, cacheEngine }: AgentOptions) {
+  constructor({
+    actions = [],
+    verbose = true,
+    cacheEngine = null,
+    localDebug = LOCAL_DEBUG,
+  }: AgentOptions) {
     this.actions = [...actions, new DoneAction()];
-    this.verbose = verbose || false;
-    this.cacheEngine = cacheEngine || null;
+    this.verbose = verbose;
+    this.cacheEngine = cacheEngine;
+    this.localDebug = localDebug;
 
     this.tokens = {
       input: 0,
@@ -96,14 +107,12 @@ export abstract class Agent<TOutput = any> {
     prompt: string;
     cache?: boolean;
   }) {
+    this.localStep++;
+
     if (this.cacheEngine && cache) {
       this.initCache();
 
-      const cacheKey = Path.join(
-        this.cacheDir,
-        `${this.cacheEngine.hash(prompt)}-answer.txt`
-      );
-
+      const cacheKey = this.cacheKey({ type: "answer", prompt });
       const cached = await this.cacheEngine.tryGet(cacheKey);
       if (cached) {
         this.log(`Using cached answer "${cacheKey}"`);
@@ -125,16 +134,39 @@ export abstract class Agent<TOutput = any> {
       this.log(`Caching prompt and answer ${promptHash}`);
 
       await this.cacheEngine.set(
-        Path.join(this.cacheDir, `${promptHash}-prompt.txt`),
+        this.cacheKey({ type: "prompt", prompt }),
         prompt
       );
       await this.cacheEngine.set(
-        Path.join(this.cacheDir, `${promptHash}-answer.txt`),
+        this.cacheKey({ type: "answer", prompt }),
         answer
       );
     }
 
     return answer;
+  }
+
+  /**
+   * Return the path to the corresponding cache file
+   *
+   * If localDebug is true, the cache file will prefixed by a incrementing number
+   */
+  private cacheKey({
+    type,
+    prompt,
+  }: {
+    type: "prompt" | "answer";
+    prompt: string;
+  }) {
+    const promptHash = this.cacheEngine.hash(prompt);
+
+    let filename = "";
+
+    if (this.localDebug) {
+      filename += `${this.localStep}-`;
+    }
+
+    return Path.join(this.cacheDir, `${filename}${promptHash}-${type}.txt`);
   }
 
   private initCache() {
@@ -152,31 +184,85 @@ export abstract class Agent<TOutput = any> {
     this.cacheInitialized = true;
   }
 
-  protected extractActions(answer: string) {
+  protected extractActions(
+    answer: string
+  ): Array<{ name: string; parameters: any }> {
     const actions: Array<{ name: string; parameters: any }> = [];
+    const lines = answer.split(/\r?\n/);
+    let insideActionBlock = false;
+    let insideParameterBlock = false;
+    let currentAction: { name: string; parameters: any } | null = null;
+    let currentParameterName: string | null = null;
+    let currentParameterValue: string | null = null;
 
-    const actionRegex = /<Action\s+name="([^"]+)">(.*?)<\/Action>/gs;
-    let match;
+    for (const line of lines) {
+      const trimmedLine = line.trim();
 
-    while ((match = actionRegex.exec(answer)) !== null) {
-      const actionName = match[1];
-      const actionContent = match[2];
+      if (trimmedLine.startsWith("<Action")) {
+        insideActionBlock = true;
+        currentAction = { name: "", parameters: {} };
 
-      const action: { name: string; parameters: any } = {
-        name: actionName,
-        parameters: {},
-      };
+        const nameMatch = trimmedLine.match(/name="([^"]+)"/);
+        if (nameMatch) {
+          currentAction.name = nameMatch[1];
+        }
 
-      const parameterRegex = /<Parameter\s+name="([^"]+)">(.*?)<\/Parameter>/gs;
-      let parameterMatch;
+        const inlineParameters = trimmedLine.match(
+          /parameter:([^=]+)="([^"]+)"/g
+        );
+        if (inlineParameters) {
+          for (const inlineParameter of inlineParameters) {
+            const [key, value] = inlineParameter
+              .replace("parameter:", "")
+              .split("=");
+            currentAction.parameters[key.replace(/"/g, "")] = value.replace(
+              /"/g,
+              ""
+            );
+          }
+        }
 
-      while ((parameterMatch = parameterRegex.exec(actionContent)) !== null) {
-        const paramName = parameterMatch[1];
-        const paramValue = parameterMatch[2];
-        action.parameters[paramName] = paramValue.replace(/\r?\n/g, "").trim();
+        if (trimmedLine.endsWith("/>")) {
+          insideActionBlock = false;
+          if (currentAction.name) {
+            actions.push(currentAction);
+          }
+          currentAction = null;
+        }
+      } else if (trimmedLine.startsWith("</Action>")) {
+        insideActionBlock = false;
+        if (currentAction && currentAction.name) {
+          actions.push(currentAction);
+        }
+        currentAction = null;
+      } else if (insideActionBlock && trimmedLine.startsWith("<Parameter")) {
+        insideParameterBlock = true;
+        currentParameterValue = "";
+        const nameMatch = trimmedLine.match(/name="([^"]+)"/);
+        if (nameMatch) {
+          currentParameterName = nameMatch[1];
+        }
+      } else if (
+        insideActionBlock &&
+        insideParameterBlock &&
+        trimmedLine.startsWith("</Parameter>")
+      ) {
+        insideParameterBlock = false;
+        if (
+          currentAction &&
+          currentParameterName &&
+          currentParameterValue !== null
+        ) {
+          currentAction.parameters[currentParameterName] =
+            currentParameterValue.trim();
+        }
+        currentParameterName = null;
+        currentParameterValue = null;
+      } else if (insideParameterBlock) {
+        if (currentParameterValue !== null) {
+          currentParameterValue += currentParameterValue ? "\n" + line : line;
+        }
       }
-
-      actions.push(action);
     }
 
     if (actions.length === 0) {
@@ -203,6 +289,22 @@ export abstract class Agent<TOutput = any> {
     }
 
     return action.execute(parameters);
+  }
+
+  protected describeFeedback({
+    actionName,
+    feedback,
+  }: {
+    actionName: string;
+    feedback: ActionFeedback;
+  }): string {
+    const action = this.actions.find((action) => action.name === actionName);
+
+    if (!action) {
+      return `Action "${actionName}" does not exist.`;
+    }
+
+    return action.describeFeedback({ feedback });
   }
 
   protected describeActions(): string {

@@ -24,7 +24,7 @@ export class ListFilesAction extends Action<ListFilesActionParametersNames> {
     const { directory } = parameters;
 
     try {
-      console.log(`ls -l ${directory}`);
+      this.log(`ls -l ${directory}`);
       const result = execSync(`ls -l ${directory}`);
 
       return {

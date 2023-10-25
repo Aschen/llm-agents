@@ -28,7 +28,7 @@ export class CopyFileAction extends Action<CopyFileActionParametersNames> {
     const { source, destination } = parameters;
 
     try {
-      console.log(`cp ${source} ${destination}`);
+      this.log(`cp ${source} ${destination}`);
       execSync(`cp ${source} ${destination}`);
 
       return {

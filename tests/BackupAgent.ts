@@ -7,6 +7,7 @@ import { Action } from "../lib/actions/Action";
 import { ExecuteShellCommandAction } from "./ExecuteShellCommandAction";
 import { CopyFileAction } from "./CopyFileAction";
 import { ListFilesAction } from "./ListFilesAction";
+import { AskExpertAction } from "./AskExpertAction";
 
 class BackupAgent extends Agent {
   private source: string;
@@ -48,22 +49,26 @@ Then, answer with the actions you want to execute.
     destination: string;
     actions: Action[];
   }) {
-    super({ actions, cacheEngine: new FileCache(), verbose: true });
+    super({ actions, cacheEngine: new FileCache() });
 
     this.source = source;
     this.destination = destination;
   }
 
   async run(): Promise<any> {
+    let step = 0;
     let done: boolean = false;
-    let feedbacks: string[] = [];
+    let feedbacks: string[][] = [];
 
     while (!done) {
+      console.log("\n---\n");
+      this.log(`Step ${step}`);
+
       const prompt = await this.template.format({
         source: this.source,
         destination: this.destination,
         actions: this.describeActions(),
-        feedback: feedbacks.join("\n"),
+        feedback: this.describeSteps(feedbacks),
       });
 
       const answer = await this.callModel({
@@ -73,12 +78,14 @@ Then, answer with the actions you want to execute.
 
       const actions = this.extractActions(answer);
 
-      feedbacks = [];
+      feedbacks[step] = [];
       let error = false;
       for (const action of actions) {
         const feedback = await this.executeAction(action);
 
-        feedbacks.push(feedback.message);
+        feedbacks[step].push(
+          this.describeFeedback({ actionName: action.name, feedback })
+        );
 
         if (feedback.type === "error") {
           error = true;
@@ -88,14 +95,27 @@ Then, answer with the actions you want to execute.
           done = true;
         }
       }
+      step++;
     }
+  }
+
+  describeSteps(feedback: string[][]): string {
+    let result;
+
+    for (let i = 0; i < feedback.length; i++) {
+      result += `<Step number="${i + 1}">`;
+      result += feedback[i].join("\n");
+      result += "\n</Step>";
+    }
+
+    return result;
   }
 }
 
 const agent = new BackupAgent({
   source: "/home/aschen/projects/llm-agents",
   destination: "/home/aschen/projects/llm-agents-backup",
-  actions: [new CopyFileAction(), new ListFilesAction()],
+  actions: [new CopyFileAction(), new ListFilesAction(), new AskExpertAction()],
 });
 
 async function run() {
