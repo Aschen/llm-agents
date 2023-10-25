@@ -1,8 +1,5 @@
 import { execSync } from "child_process";
 
-import { CopyFileAction } from "../../lib/actions/CopyFileAction";
-import { CreateDirectoryAction } from "../../lib/actions/CreateDirectoryAction";
-import { ListFilesAction } from "../../lib/actions/ListFilesAction";
 import { BackupAgent } from "./BackupAgent";
 
 const BEST_ACTION_COUNT = 22;
@@ -15,11 +12,6 @@ execSync("mkdir -p ./tests/prompt-engineering/backup-agent/destination");
 const backupAgent = new BackupAgent({
   source: "./tests/prompt-engineering/backup-agent/source",
   destination: "./tests/prompt-engineering/backup-agent/destination",
-  actions: [
-    new ListFilesAction(),
-    new CopyFileAction(),
-    new CreateDirectoryAction(),
-  ],
 });
 
 // Test

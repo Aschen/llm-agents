@@ -2,7 +2,9 @@ import { PromptTemplate } from "langchain/prompts";
 
 import { Agent } from "../../../lib/Agent";
 import { FileCache } from "../../../lib/cache/FileCache";
-import { Action } from "../../../lib/actions/Action";
+import { ListFilesAction } from "../../lib/actions/ListFilesAction";
+import { CopyFileAction } from "../../lib/actions/CopyFileAction";
+import { CreateDirectoryAction } from "../../lib/actions/CreateDirectoryAction";
 
 export class BackupAgent extends Agent {
   private source: string;
@@ -38,13 +40,18 @@ Then, answer with the actions you want to execute.
   constructor({
     source,
     destination,
-    actions,
   }: {
     source: string;
     destination: string;
-    actions: Action[];
   }) {
-    super({ actions, cacheEngine: new FileCache() });
+    super({
+      actions: [
+        new ListFilesAction(),
+        new CopyFileAction(),
+        new CreateDirectoryAction(),
+      ],
+      cacheEngine: new FileCache(),
+    });
 
     this.source = source;
     this.destination = destination;

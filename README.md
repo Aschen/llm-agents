@@ -81,6 +81,12 @@ import { PromptTemplate } from "langchain/prompts";
 
 import { Action, FileCache, Agent } from "llm-agents";
 
+import {
+  CreateDirectoryAction,
+  CopyFileAction,
+  ListFilesAction,
+} from "./actions";
+
 export class BackupAgent extends Agent {
   private source: string;
   private destination: string;
@@ -115,13 +121,18 @@ Then, answer with the actions you want to execute.
   constructor({
     source,
     destination,
-    actions,
   }: {
     source: string;
     destination: string;
-    actions: Action[];
   }) {
-    super({ actions, cacheEngine: new FileCache() });
+    super({
+      actions: [
+        new ListFilesAction(),
+        new CopyFileAction(),
+        new CreateDirectoryAction(),
+      ],
+      cacheEngine: new FileCache(),
+    });
 
     this.source = source;
     this.destination = destination;

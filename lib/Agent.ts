@@ -38,9 +38,9 @@ export abstract class Agent {
   protected cacheInitialized = false;
   protected localDebug: boolean;
   protected promptStep = -1;
-  protected step = 0;
-  protected actionsCount = 0;
-  protected actionsErrorCount = 0;
+  public step = 0;
+  public actionsCount = 0;
+  public actionsErrorCount = 0;
 
   private actions: Action[];
 
