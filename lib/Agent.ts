@@ -4,18 +4,23 @@ import { OpenAI } from "langchain/llms/openai";
 import { PromptTemplate } from "langchain/prompts";
 
 import { CacheEngine } from "./cache/CacheEngine";
+import { Action, ActionFeedback } from "./actions/Action";
+import { DoneAction } from "./actions/DoneAction";
+
+const LOCAL_DEBUG = process.env.NODE_ENV !== "production";
 
 function kebabCase(str) {
   return str
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, "$1-$2")
+    .replace(/([a-z])([A-Z])/g, "$1-$2")
     .replace(/[\s_]+/g, "-")
     .toLowerCase();
 }
 
 export type AgentOptions = {
+  actions?: Action[];
   verbose?: boolean;
   cacheEngine?: CacheEngine;
+  localDebug?: boolean;
 };
 
 const MODELS_COST = {
@@ -29,15 +34,19 @@ const MODELS_COST = {
   },
 } as const;
 
-export abstract class Agent<TOutput = any> {
-  private cacheInitialized = false;
+export abstract class Agent {
+  protected cacheInitialized = false;
+  protected localDebug: boolean;
+  protected promptStep = -1;
+
+  private actions: Action[];
 
   protected verbose: boolean;
   protected cacheEngine: CacheEngine | null;
   protected cacheHash: string;
   protected cacheDir: string;
 
-  public characters: {
+  public tokens: {
     input: number;
     output: number;
   };
@@ -45,9 +54,9 @@ export abstract class Agent<TOutput = any> {
 
   protected abstract template: PromptTemplate;
 
-  private models = new Map<keyof typeof MODELS_COST, OpenAI>();
+  protected models = new Map<keyof typeof MODELS_COST, OpenAI>();
 
-  private model(name: keyof typeof MODELS_COST): OpenAI {
+  protected model(name: keyof typeof MODELS_COST): OpenAI {
     if (!this.models.has(name)) {
       this.models.set(
         name,
@@ -62,23 +71,82 @@ export abstract class Agent<TOutput = any> {
     return this.models.get(name) as OpenAI;
   }
 
-  abstract run(): Promise<TOutput>;
+  protected abstract formatPrompt({
+    actions,
+    feedbackSteps,
+  }: {
+    actions: string;
+    feedbackSteps: string[];
+  }): Promise<string>;
 
-  constructor({ verbose, cacheEngine }: AgentOptions) {
-    this.verbose = verbose || false;
-    this.cacheEngine = cacheEngine || null;
+  constructor({
+    actions = [],
+    verbose = true,
+    cacheEngine = null,
+    localDebug = LOCAL_DEBUG,
+  }: AgentOptions = {}) {
+    this.actions = [...actions, new DoneAction()];
+    this.verbose = verbose;
+    this.cacheEngine = cacheEngine;
+    this.localDebug = localDebug;
 
-    this.characters = {
+    this.tokens = {
       input: 0,
       output: 0,
     };
     this.cost = 0;
   }
 
-  protected log(...chunks: string[]) {
-    if (this.verbose) {
-      console.log(...chunks.map((c) => `${this.constructor.name}: ${c}`));
+  async run() {
+    let done: boolean = false;
+    let feedbackSteps: string[][] = [];
+    let step = 0;
+
+    while (!done) {
+      this.log(`Step ${step}`);
+
+      const prompt = await this.formatPrompt({
+        actions: this.describeActions(),
+        feedbackSteps: this.describeFeedbackSteps({ feedbackSteps }),
+      });
+
+      const answer = await this.callModel({
+        model: "gpt-4",
+        prompt,
+      });
+
+      const actions = this.extractActions(answer);
+
+      feedbackSteps[step] = [];
+      let error = false;
+      for (const action of actions) {
+        const feedback = await this.executeAction(action);
+
+        feedbackSteps[step].push(
+          this.describeFeedback({
+            actionName: action.name,
+            feedback,
+            parameters: action.parameters,
+          })
+        );
+
+        if (feedback.type === "error") {
+          error = true;
+        }
+
+        if (action.name === "done") {
+          done = true;
+        }
+      }
+
+      // End the loop only if there were no error
+      done = done && !error;
+
+      step++;
+      this.log(`Step ${step} done\n\n`);
     }
+
+    return done as any;
   }
 
   protected async callModel({
@@ -90,47 +158,92 @@ export abstract class Agent<TOutput = any> {
     prompt: string;
     cache?: boolean;
   }) {
+    this.promptStep++;
+
     if (this.cacheEngine && cache) {
       this.initCache();
 
-      const cacheKey = Path.join(
-        this.cacheDir,
-        `answer-${this.cacheEngine.hash(prompt)}.txt`
-      );
+      const promptCacheKey = this.cacheKey({ type: "prompt", prompt });
 
-      const cached = await this.cacheEngine.tryGet(cacheKey);
-      if (cached) {
-        this.log(`Using cached answer "${cacheKey}"`);
-        return cached;
+      this.log(`Caching prompt at "${promptCacheKey}"`);
+
+      await this.cacheEngine.set(promptCacheKey, prompt);
+
+      const answerCacheKey = this.cacheKey({ type: "answer", prompt });
+      if (await this.cacheEngine.has(answerCacheKey)) {
+        this.log(`Using cached answer at "${answerCacheKey}"`);
+
+        const answer = await this.cacheEngine.get(answerCacheKey);
+
+        await this.computeCosts({ model, prompt, answer });
+
+        return answer;
       }
     }
-
     const answer = await this.model(model).call(prompt);
-    this.characters.input += prompt.length;
-    this.characters.output += answer.length;
-    this.cost += MODELS_COST[model].input * (prompt.length / 3 / 1000);
-    this.cost += MODELS_COST[model].output * (answer.length / 3 / 1000);
+
+    await this.computeCosts({ model, prompt, answer });
 
     if (this.cacheEngine && cache) {
-      const promptHash = this.cacheEngine.hash(prompt);
+      const answerCacheKey = this.cacheKey({ type: "answer", prompt });
 
-      this.log(`Caching prompt and answer ${promptHash}`);
+      this.log(`Caching answer at "${answerCacheKey}"`);
 
-      await this.cacheEngine.set(
-        Path.join(this.cacheDir, `prompt-${promptHash}.txt`),
-        prompt
-      );
-      await this.cacheEngine.set(
-        Path.join(this.cacheDir, `answer-${promptHash}.txt`),
-        answer
-      );
+      await this.cacheEngine.set(answerCacheKey, answer);
     }
 
     return answer;
   }
 
+  private async computeCosts({
+    model,
+    prompt,
+    answer,
+  }: {
+    model: "gpt-4" | "gpt-3.5-turbo-16k";
+    prompt: string;
+    answer: string;
+  }) {
+    const promptTokens = await this.model(model).getNumTokens(prompt);
+    const answerTokens = await this.model(model).getNumTokens(answer);
+    this.tokens.input += promptTokens;
+    this.tokens.output += answerTokens;
+    this.cost += MODELS_COST[model].input * (promptTokens / 1000);
+    this.cost += MODELS_COST[model].output * (answerTokens / 1000);
+  }
+
+  protected log(...chunks: string[]) {
+    if (this.verbose) {
+      console.log(...chunks.map((c) => `${this.constructor.name}: ${c}`));
+    }
+  }
+
+  /**
+   * Return the path to the corresponding cache file
+   *
+   * If localDebug is true, the cache file will prefixed by a incrementing number
+   */
+  private cacheKey({
+    type,
+    prompt,
+  }: {
+    type: "prompt" | "answer";
+    prompt: string;
+  }) {
+    const promptHash = this.cacheEngine.hash(prompt);
+
+    let filename = "";
+
+    if (this.localDebug) {
+      filename += `${this.promptStep}-`;
+    }
+
+    return Path.join(this.cacheDir, `${filename}${promptHash}-${type}.txt`);
+  }
+
   private initCache() {
     if (this.cacheInitialized || this.cacheEngine === null) {
+      this.log(`Cache activated: ${this.cacheDir}`);
       return;
     }
 
@@ -143,31 +256,85 @@ export abstract class Agent<TOutput = any> {
     this.cacheInitialized = true;
   }
 
-  protected extractActions(answer: string) {
+  protected extractActions(
+    answer: string
+  ): Array<{ name: string; parameters: any }> {
     const actions: Array<{ name: string; parameters: any }> = [];
+    const lines = answer.split(/\r?\n/);
+    let insideActionBlock = false;
+    let insideParameterBlock = false;
+    let currentAction: { name: string; parameters: any } | null = null;
+    let currentParameterName: string | null = null;
+    let currentParameterValue: string | null = null;
 
-    const actionRegex = /<Action\s+name="([^"]+)">(.*?)<\/Action>/gs;
-    let match;
+    for (const line of lines) {
+      const trimmedLine = line.trim();
 
-    while ((match = actionRegex.exec(answer)) !== null) {
-      const actionName = match[1];
-      const actionContent = match[2];
+      if (trimmedLine.startsWith("<Action")) {
+        insideActionBlock = true;
+        currentAction = { name: "", parameters: {} };
 
-      const action: { name: string; parameters: any } = {
-        name: actionName,
-        parameters: {},
-      };
+        const nameMatch = trimmedLine.match(/name="([^"]+)"/);
+        if (nameMatch) {
+          currentAction.name = nameMatch[1];
+        }
 
-      const parameterRegex = /<Parameter\s+name="([^"]+)">(.*?)<\/Parameter>/gs;
-      let parameterMatch;
+        const inlineParameters = trimmedLine.match(
+          /parameter:([^=]+)="([^"]+)"/g
+        );
+        if (inlineParameters) {
+          for (const inlineParameter of inlineParameters) {
+            const [key, value] = inlineParameter
+              .replace("parameter:", "")
+              .split("=");
+            currentAction.parameters[key.replace(/"/g, "")] = value.replace(
+              /"/g,
+              ""
+            );
+          }
+        }
 
-      while ((parameterMatch = parameterRegex.exec(actionContent)) !== null) {
-        const paramName = parameterMatch[1];
-        const paramValue = parameterMatch[2];
-        action.parameters[paramName] = paramValue.replace(/\r?\n/g, "").trim();
+        if (trimmedLine.endsWith("/>")) {
+          insideActionBlock = false;
+          if (currentAction.name) {
+            actions.push(currentAction);
+          }
+          currentAction = null;
+        }
+      } else if (trimmedLine.startsWith("</Action>")) {
+        insideActionBlock = false;
+        if (currentAction && currentAction.name) {
+          actions.push(currentAction);
+        }
+        currentAction = null;
+      } else if (insideActionBlock && trimmedLine.startsWith("<Parameter")) {
+        insideParameterBlock = true;
+        currentParameterValue = "";
+        const nameMatch = trimmedLine.match(/name="([^"]+)"/);
+        if (nameMatch) {
+          currentParameterName = nameMatch[1];
+        }
+      } else if (
+        insideActionBlock &&
+        insideParameterBlock &&
+        trimmedLine.startsWith("</Parameter>")
+      ) {
+        insideParameterBlock = false;
+        if (
+          currentAction &&
+          currentParameterName &&
+          currentParameterValue !== null
+        ) {
+          currentAction.parameters[currentParameterName] =
+            currentParameterValue.trim();
+        }
+        currentParameterName = null;
+        currentParameterValue = null;
+      } else if (insideParameterBlock) {
+        if (currentParameterValue !== null) {
+          currentParameterValue += currentParameterValue ? "\n" + line : line;
+        }
       }
-
-      actions.push(action);
     }
 
     if (actions.length === 0) {
@@ -175,5 +342,62 @@ export abstract class Agent<TOutput = any> {
     }
 
     return actions;
+  }
+
+  protected async executeAction({
+    name,
+    parameters,
+  }: {
+    name: string;
+    parameters: Record<string, string>;
+  }): Promise<ActionFeedback> {
+    const action = this.actions.find((action) => action.name === name);
+
+    if (!action) {
+      return {
+        message: `Action "${name}" not found`,
+        type: "error",
+      };
+    }
+
+    return action.execute(parameters);
+  }
+
+  protected describeFeedback({
+    actionName,
+    parameters,
+    feedback,
+  }: {
+    actionName: string;
+    parameters: Record<string, string>;
+    feedback: ActionFeedback;
+  }): string {
+    const action = this.actions.find((action) => action.name === actionName);
+
+    if (!action) {
+      return `Action "${actionName}" does not exist.`;
+    }
+
+    return action.describeFeedback({ feedback, parameters });
+  }
+
+  protected describeActions(): string {
+    return this.actions.map((action) => action.describe).join("\n");
+  }
+
+  protected describeFeedbackSteps({
+    feedbackSteps,
+  }: {
+    feedbackSteps: string[][];
+  }): string[] {
+    let describedSteps = [];
+
+    for (let i = 0; i < feedbackSteps.length; i++) {
+      describedSteps.push(`<Step number="${i + 1}">
+  ${feedbackSteps[i].join("\n  ")}
+</Step>`);
+    }
+
+    return describedSteps;
   }
 }
