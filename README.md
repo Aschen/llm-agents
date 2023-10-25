@@ -1,10 +1,10 @@
 # LLM Agents
 
-A minimalist framework to [create LLM Agents with Node.js](https://gen-ai.fr/large-language-model/creer-un-agent-llm-en-node-js-partie-1/)
+A KISS framework to [create LLM Agents with Node.js](https://gen-ai.fr/large-language-model/creer-un-agent-llm-en-node-js-partie-1/)
 
 ## Usage
 
-```
+```bash
 $ bun install llm-agents
 
 # or the legacy way
