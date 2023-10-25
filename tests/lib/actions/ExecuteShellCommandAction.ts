@@ -9,7 +9,6 @@ export class ExecuteShellCommandAction extends Action<ExecuteShellCommandActionP
     super({
       name: "executeShellCommand",
       usage: "execute a shell command",
-      format: "singleline",
       parameters: [
         {
           name: "command",
@@ -26,17 +25,7 @@ export class ExecuteShellCommandAction extends Action<ExecuteShellCommandActionP
 
     try {
       console.log(`$ ${command}`);
-
-      if (
-        !command.trim().startsWith("cp") &&
-        !command.trim().startsWith("mkdir") &&
-        !command.trim().startsWith("ls")
-      ) {
-        throw new Error("Only cp, mkdir and ls commands are allowed.");
-      }
-
       const result = execSync(command);
-
       return {
         message: `$ ${command}\n${result.toString()}`,
         type: "success",

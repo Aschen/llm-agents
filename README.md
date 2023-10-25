@@ -4,7 +4,63 @@ A minimalist framework to [create LLM Agents with Node.js](https://gen-ai.fr/lar
 
 ## Usage
 
+```
+$ bun install llm-agents
+
+# or the legacy way
+
+$ npm install llm-agents
+```
+
 ### Actions
+
+Extends the [Action](lib/actions/Action.ts) class to define an action with:
+
+- name
+- usage
+- parameters
+
+```ts
+import { execSync } from "child_process";
+
+import { Action, ActionFeedback } from "llm-agents";
+
+type ExecuteShellCommandActionParametersNames = "command";
+
+export class ExecuteShellCommandAction extends Action<ExecuteShellCommandActionParametersNames> {
+  constructor() {
+    super({
+      name: "executeShellCommand",
+      usage: "execute a shell command",
+      parameters: [
+        {
+          name: "command",
+          usage: "command to execute",
+        },
+      ],
+    });
+  }
+
+  protected async executeAction(
+    parameters: Record<ExecuteShellCommandActionParametersNames, string>
+  ): Promise<ActionFeedback> {
+    const { command } = parameters;
+
+    try {
+      const result = execSync(command);
+      return {
+        message: `$ ${command}\n${result.toString()}`,
+        type: "success",
+      };
+    } catch (error) {
+      return {
+        message: `$ ${command}\n${error.message}`,
+        type: "error",
+      };
+    }
+  }
+}
+```
 
 Examples:
 
@@ -13,6 +69,12 @@ Examples:
 - [CreateDirectoryActions]('tests/lib/actions/CreateDirectoryActions.ts')
 
 ### Agents
+
+Extends the [Agent](lib/Agent.ts) class to define an Agent with:
+
+- template content
+- template formating
+- actions (optionnal)
 
 Examples:
 
