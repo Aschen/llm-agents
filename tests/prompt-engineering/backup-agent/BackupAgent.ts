@@ -53,55 +53,6 @@ Then, answer with the actions you want to execute.
     this.destination = destination;
   }
 
-  async run(): Promise<any> {
-    let done: boolean = false;
-    let feedbackSteps: string[][] = [];
-
-    while (!done) {
-      this.log(`Step ${this.step}`);
-
-      const prompt = await this.template.format({
-        source: this.source,
-        destination: this.destination,
-        actions: this.describeActions(),
-        feedback: this.describeFeedbackSteps({ feedbackSteps }),
-      });
-
-      const answer = await this.callModel({
-        model: "gpt-4",
-        prompt,
-      });
-
-      const actions = this.extractActions(answer);
-
-      feedbackSteps[this.step] = [];
-      let error = false;
-      for (const action of actions) {
-        const feedback = await this.executeAction(action);
-
-        feedbackSteps[this.step].push(
-          this.describeFeedback({
-            actionName: action.name,
-            feedback,
-            parameters: action.parameters,
-          })
-        );
-
-        if (feedback.type === "error") {
-          error = true;
-        } else {
-          this.actionsCount++;
-        }
-
-        if (!error && action.name === "done") {
-          done = true;
-        }
-      }
-      this.step++;
-      this.log(`Step ${this.step} done\n\n`);
-    }
-  }
-
   protected async formatPrompt({
     actions,
     feedbackSteps,
@@ -109,6 +60,11 @@ Then, answer with the actions you want to execute.
     actions: string;
     feedbackSteps: string[];
   }) {
-    return "not used";
+    return this.template.format({
+      source: this.source,
+      destination: this.destination,
+      actions,
+      feedback: feedbackSteps.join("\n\n"),
+    });
   }
 }

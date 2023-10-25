@@ -4,7 +4,29 @@ A minimalist framework to [create LLM Agents with Node.js](https://gen-ai.fr/lar
 
 ## Usage
 
-_soon_
+### Actions
+
+Examples:
+
+- [ListFilesActions]('tests/lib/actions/ListFilesActions.ts')
+- [CopyFileActions]('tests/lib/actions/CopyFileActions.ts')
+- [CreateDirectoryActions]('tests/lib/actions/CreateDirectoryActions.ts')
+
+### Agents
+
+Examples:
+
+- [BackupAgent](tests/prompt-engineering/backup-agent/BackupAgent.ts)
+
+### Cache
+
+During development phase, it's advised to use the filesystem cache.
+
+It will save both prompt and answer for each step.
+
+The cache key is a hash of the prompt so if the prompt does not change, the cached answer will be used directly.
+
+You can also debug your prompts and answers in the `.cache/` folder. In development mode, they will be prefixed by the step number (e.g. `0-92957a2b27-answer.txt`)
 
 ## Tests
 

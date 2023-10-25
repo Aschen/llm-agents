@@ -1,4 +1,3 @@
-import * as assert from "assert";
 import { execSync } from "child_process";
 
 import { CopyFileAction } from "../../lib/actions/CopyFileAction";
@@ -8,7 +7,7 @@ import { BackupAgent } from "./BackupAgent";
 
 const BEST_ACTION_COUNT = 22;
 const BEST_STEP_COUNT = 5;
-const BEST_COST = 0.226;
+const BEST_COST = 0.222;
 
 // Setup
 execSync("rm -rf ./tests/prompt-engineering/backup-agent/destination");

@@ -38,6 +38,9 @@ export abstract class Agent {
   protected cacheInitialized = false;
   protected localDebug: boolean;
   protected promptStep = -1;
+  protected step = 0;
+  protected actionsCount = 0;
+  protected actionsErrorCount = 0;
 
   private actions: Action[];
 
@@ -100,10 +103,9 @@ export abstract class Agent {
   async run() {
     let done: boolean = false;
     let feedbackSteps: string[][] = [];
-    let step = 0;
 
     while (!done) {
-      this.log(`Step ${step}`);
+      this.log(`Step ${this.step}`);
 
       const prompt = await this.formatPrompt({
         actions: this.describeActions(),
@@ -117,12 +119,12 @@ export abstract class Agent {
 
       const actions = this.extractActions(answer);
 
-      feedbackSteps[step] = [];
+      feedbackSteps[this.step] = [];
       let error = false;
       for (const action of actions) {
         const feedback = await this.executeAction(action);
 
-        feedbackSteps[step].push(
+        feedbackSteps[this.step].push(
           this.describeFeedback({
             actionName: action.name,
             feedback,
@@ -132,6 +134,9 @@ export abstract class Agent {
 
         if (feedback.type === "error") {
           error = true;
+          this.actionsErrorCount++;
+        } else {
+          this.actionsCount++;
         }
 
         if (action.name === "done") {
@@ -142,8 +147,8 @@ export abstract class Agent {
       // End the loop only if there were no error
       done = done && !error;
 
-      step++;
-      this.log(`Step ${step} done\n\n`);
+      this.log(`Step ${this.step} done\n\n`);
+      this.step++;
     }
 
     return done as any;
