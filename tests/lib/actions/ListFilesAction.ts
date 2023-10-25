@@ -1,14 +1,15 @@
 import { execSync } from "child_process";
 
-import { Action, ActionFeedback } from "../lib/actions/Action";
+import { Action, ActionFeedback } from "../../../lib/actions/Action";
 
 type ListFilesActionParametersNames = "directory";
 
 export class ListFilesAction extends Action<ListFilesActionParametersNames> {
-  constructor() {
+  constructor({ format }: { format?: "singleline" | "multiline" } = {}) {
     super({
       name: "listFiles",
       usage: "list all files in a directory",
+      format,
       parameters: [
         {
           name: "directory",

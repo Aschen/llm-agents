@@ -1,6 +1,6 @@
 import { execSync } from "child_process";
 
-import { Action, ActionFeedback } from "../lib/actions/Action";
+import { Action, ActionFeedback } from "../../../lib/actions/Action";
 
 type CreateDirectoryActionParametersNames = "path";
 
@@ -9,6 +9,7 @@ export class CreateDirectoryAction extends Action<CreateDirectoryActionParameter
     super({
       name: "createDirectory",
       usage: "create a directory",
+      format: "singleline",
       parameters: [
         {
           name: "path",

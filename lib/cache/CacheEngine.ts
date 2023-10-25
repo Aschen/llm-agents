@@ -6,14 +6,6 @@ export abstract class CacheEngine {
   abstract set(cacheKey: string, content: string): Promise<void>;
   abstract delete(cacheKey: string): Promise<void>;
 
-  public async tryGet(cacheKey: string) {
-    if (!(await this.has(cacheKey))) {
-      return null;
-    }
-
-    return this.get(cacheKey);
-  }
-
   public hash(data: string): string {
     const hash = crypto.createHash("sha512");
     hash.update(data);

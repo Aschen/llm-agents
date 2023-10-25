@@ -1,15 +1,13 @@
 import { PromptTemplate } from "langchain/prompts";
 
-import { Agent } from "../lib/Agent";
-import { FileCache } from "../lib/cache/FileCache";
-import { Action } from "../lib/actions/Action";
+import { Agent } from "../../../lib/Agent";
+import { FileCache } from "../../../lib/cache/FileCache";
+import { Action } from "../../../lib/actions/Action";
 
-import { ExecuteShellCommandAction } from "./ExecuteShellCommandAction";
-import { CopyFileAction } from "./CopyFileAction";
-import { ListFilesAction } from "./ListFilesAction";
-import { AskExpertAction } from "./AskExpertAction";
+export class BackupAgent extends Agent {
+  public actionsCount = 0;
+  public step = 0;
 
-class BackupAgent extends Agent {
   private source: string;
   private destination: string;
 
@@ -56,19 +54,17 @@ Then, answer with the actions you want to execute.
   }
 
   async run(): Promise<any> {
-    let step = 0;
     let done: boolean = false;
-    let feedbacks: string[][] = [];
+    let feedbackSteps: string[][] = [];
 
     while (!done) {
-      console.log("\n---\n");
-      this.log(`Step ${step}`);
+      this.log(`Step ${this.step}`);
 
       const prompt = await this.template.format({
         source: this.source,
         destination: this.destination,
         actions: this.describeActions(),
-        feedback: this.describeSteps(feedbacks),
+        feedback: this.describeFeedbackSteps({ feedbackSteps }),
       });
 
       const answer = await this.callModel({
@@ -78,48 +74,41 @@ Then, answer with the actions you want to execute.
 
       const actions = this.extractActions(answer);
 
-      feedbacks[step] = [];
+      feedbackSteps[this.step] = [];
       let error = false;
       for (const action of actions) {
         const feedback = await this.executeAction(action);
 
-        feedbacks[step].push(
-          this.describeFeedback({ actionName: action.name, feedback })
+        feedbackSteps[this.step].push(
+          this.describeFeedback({
+            actionName: action.name,
+            feedback,
+            parameters: action.parameters,
+          })
         );
 
         if (feedback.type === "error") {
           error = true;
+        } else {
+          this.actionsCount++;
         }
 
         if (!error && action.name === "done") {
           done = true;
         }
       }
-      step++;
+      this.step++;
+      this.log(`Step ${this.step} done\n\n`);
     }
   }
 
-  describeSteps(feedback: string[][]): string {
-    let result;
-
-    for (let i = 0; i < feedback.length; i++) {
-      result += `<Step number="${i + 1}">`;
-      result += feedback[i].join("\n");
-      result += "\n</Step>";
-    }
-
-    return result;
+  protected async formatPrompt({
+    actions,
+    feedbackSteps,
+  }: {
+    actions: string;
+    feedbackSteps: string[];
+  }) {
+    return "not used";
   }
 }
-
-const agent = new BackupAgent({
-  source: "/home/aschen/projects/llm-agents",
-  destination: "/home/aschen/projects/llm-agents-backup",
-  actions: [new CopyFileAction(), new ListFilesAction(), new AskExpertAction()],
-});
-
-async function run() {
-  await agent.run();
-}
-
-run();

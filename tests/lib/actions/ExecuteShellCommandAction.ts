@@ -1,6 +1,6 @@
 import { execSync } from "child_process";
 
-import { Action, ActionFeedback } from "../lib/actions/Action";
+import { Action, ActionFeedback } from "../../../lib/actions/Action";
 
 type ExecuteShellCommandActionParametersNames = "command";
 
@@ -9,6 +9,7 @@ export class ExecuteShellCommandAction extends Action<ExecuteShellCommandActionP
     super({
       name: "executeShellCommand",
       usage: "execute a shell command",
+      format: "singleline",
       parameters: [
         {
           name: "command",

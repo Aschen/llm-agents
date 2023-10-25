@@ -39,7 +39,7 @@ export abstract class Action<TParametersNames extends string = any> {
     feedbackSizeLimit?: number;
     feedbackSizeLimitMessage?: string;
     verbose?: boolean;
-    format: "singleline" | "multiline";
+    format?: "singleline" | "multiline";
   }) {
     this.name = name;
     this.usage = usage;
@@ -83,8 +83,8 @@ export abstract class Action<TParametersNames extends string = any> {
   private get describeMultiLine(): string {
     let result = `Use this action to: ${this.usage}\n<Action name="${this.name}">`;
 
-    result +=
-      '\n  <Thought explanation="<explain here why you need to execute the action>"/>';
+    // result +=
+    //   '\n  <Thought explanation="<explain here why you need to execute the action>"/>';
 
     for (const param of this.parameters) {
       result += `\n  <Parameter name="${param.name}">\n    // ${param.usage}\n  </Parameter>`;
@@ -96,7 +96,8 @@ export abstract class Action<TParametersNames extends string = any> {
   }
 
   private get describeSingleLine(): string {
-    let result = `<Action thought="<explain here why you need to execute the action>" name="${this.name}"`;
+    let result = `<Action name="${this.name}"`;
+    // let result = `<Action thought="<explain here why you need to execute the action>" name="${this.name}"`;
 
     for (const param of this.parameters) {
       result += ` parameter:${param.name}="<${param.usage}>"`;
@@ -107,12 +108,47 @@ export abstract class Action<TParametersNames extends string = any> {
     return result;
   }
 
-  describeFeedback({ feedback }: { feedback: ActionFeedback }): string {
+  describeFeedback({
+    feedback,
+    parameters,
+  }: {
+    feedback: ActionFeedback;
+    parameters: Record<string, string>;
+  }) {
+    if (this.format === "singleline") {
+      return this.describeFeedbackSingleline({ feedback, parameters });
+    }
+    return this.describeFeedbackMultiline({ feedback, parameters });
+  }
+
+  describeFeedbackSingleline({
+    feedback,
+    parameters,
+  }: {
+    feedback: ActionFeedback;
+    parameters: Record<string, string>;
+  }): string {
+    let result = `<Action name="${this.name}" `;
+    for (const param of this.parameters) {
+      result += `parameter:${param.name}="${parameters[param.name]}" `;
+    }
+    result += `feedback:type="${feedback.type}" feedback:message="${feedback.message}" />`;
+    return result;
+  }
+  describeFeedbackMultiline({
+    feedback,
+    parameters,
+  }: {
+    feedback: ActionFeedback;
+    parameters: Record<string, string>;
+  }): string {
     let result = `  <Action name="${this.name}">`;
     for (const param of this.parameters) {
-      result += `\n    <Parameter name="${param.name}">\n      // ${param.usage}\n    </Parameter>`;
+      result += `\n    <Parameter name="${param.name}">\n      ${
+        parameters[param.name]
+      }\n    </Parameter>`;
     }
-    result += `\n    <Feedback type="${feedback.type}">\n      // ${feedback.message}\n    </Feedback>`;
+    result += `\n    <Feedback type="${feedback.type}">\n      ${feedback.message}\n    </Feedback>`;
     result += "\n  </Action>";
     return result;
   }

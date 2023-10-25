@@ -11,8 +11,7 @@ const LOCAL_DEBUG = process.env.NODE_ENV !== "production";
 
 function kebabCase(str) {
   return str
-    .replace(/[^a-zA-Z0-9]/g, "")
-    .replace(/([a-z0-9]|(?=[A-Z]))([A-Z])/g, "$1-$2")
+    .replace(/([a-z])([A-Z])/g, "$1-$2")
     .replace(/[\s_]+/g, "-")
     .toLowerCase();
 }
@@ -35,10 +34,10 @@ const MODELS_COST = {
   },
 } as const;
 
-export abstract class Agent<TOutput = any> {
+export abstract class Agent {
   protected cacheInitialized = false;
   protected localDebug: boolean;
-  protected localStep = -1;
+  protected promptStep = -1;
 
   private actions: Action[];
 
@@ -72,14 +71,20 @@ export abstract class Agent<TOutput = any> {
     return this.models.get(name) as OpenAI;
   }
 
-  abstract run(): Promise<TOutput>;
+  protected abstract formatPrompt({
+    actions,
+    feedbackSteps,
+  }: {
+    actions: string;
+    feedbackSteps: string[];
+  }): Promise<string>;
 
   constructor({
     actions = [],
     verbose = true,
     cacheEngine = null,
     localDebug = LOCAL_DEBUG,
-  }: AgentOptions) {
+  }: AgentOptions = {}) {
     this.actions = [...actions, new DoneAction()];
     this.verbose = verbose;
     this.cacheEngine = cacheEngine;
@@ -92,10 +97,56 @@ export abstract class Agent<TOutput = any> {
     this.cost = 0;
   }
 
-  protected log(...chunks: string[]) {
-    if (this.verbose) {
-      console.log(...chunks.map((c) => `${this.constructor.name}: ${c}`));
+  async run() {
+    let done: boolean = false;
+    let feedbackSteps: string[][] = [];
+    let step = 0;
+
+    while (!done) {
+      this.log(`Step ${step}`);
+
+      const prompt = await this.formatPrompt({
+        actions: this.describeActions(),
+        feedbackSteps: this.describeFeedbackSteps({ feedbackSteps }),
+      });
+
+      const answer = await this.callModel({
+        model: "gpt-4",
+        prompt,
+      });
+
+      const actions = this.extractActions(answer);
+
+      feedbackSteps[step] = [];
+      let error = false;
+      for (const action of actions) {
+        const feedback = await this.executeAction(action);
+
+        feedbackSteps[step].push(
+          this.describeFeedback({
+            actionName: action.name,
+            feedback,
+            parameters: action.parameters,
+          })
+        );
+
+        if (feedback.type === "error") {
+          error = true;
+        }
+
+        if (action.name === "done") {
+          done = true;
+        }
+      }
+
+      // End the loop only if there were no error
+      done = done && !error;
+
+      step++;
+      this.log(`Step ${step} done\n\n`);
     }
+
+    return done as any;
   }
 
   protected async callModel({
@@ -107,43 +158,64 @@ export abstract class Agent<TOutput = any> {
     prompt: string;
     cache?: boolean;
   }) {
-    this.localStep++;
+    this.promptStep++;
 
     if (this.cacheEngine && cache) {
       this.initCache();
 
-      const cacheKey = this.cacheKey({ type: "answer", prompt });
-      const cached = await this.cacheEngine.tryGet(cacheKey);
-      if (cached) {
-        this.log(`Using cached answer "${cacheKey}"`);
-        return cached;
+      const promptCacheKey = this.cacheKey({ type: "prompt", prompt });
+
+      this.log(`Caching prompt at "${promptCacheKey}"`);
+
+      await this.cacheEngine.set(promptCacheKey, prompt);
+
+      const answerCacheKey = this.cacheKey({ type: "answer", prompt });
+      if (await this.cacheEngine.has(answerCacheKey)) {
+        this.log(`Using cached answer at "${answerCacheKey}"`);
+
+        const answer = await this.cacheEngine.get(answerCacheKey);
+
+        await this.computeCosts({ model, prompt, answer });
+
+        return answer;
       }
     }
     const answer = await this.model(model).call(prompt);
 
+    await this.computeCosts({ model, prompt, answer });
+
+    if (this.cacheEngine && cache) {
+      const answerCacheKey = this.cacheKey({ type: "answer", prompt });
+
+      this.log(`Caching answer at "${answerCacheKey}"`);
+
+      await this.cacheEngine.set(answerCacheKey, answer);
+    }
+
+    return answer;
+  }
+
+  private async computeCosts({
+    model,
+    prompt,
+    answer,
+  }: {
+    model: "gpt-4" | "gpt-3.5-turbo-16k";
+    prompt: string;
+    answer: string;
+  }) {
     const promptTokens = await this.model(model).getNumTokens(prompt);
     const answerTokens = await this.model(model).getNumTokens(answer);
     this.tokens.input += promptTokens;
     this.tokens.output += answerTokens;
     this.cost += MODELS_COST[model].input * (promptTokens / 1000);
     this.cost += MODELS_COST[model].output * (answerTokens / 1000);
+  }
 
-    if (this.cacheEngine && cache) {
-      const promptHash = this.cacheEngine.hash(prompt);
-
-      this.log(`Caching prompt and answer ${promptHash}`);
-
-      await this.cacheEngine.set(
-        this.cacheKey({ type: "prompt", prompt }),
-        prompt
-      );
-      await this.cacheEngine.set(
-        this.cacheKey({ type: "answer", prompt }),
-        answer
-      );
+  protected log(...chunks: string[]) {
+    if (this.verbose) {
+      console.log(...chunks.map((c) => `${this.constructor.name}: ${c}`));
     }
-
-    return answer;
   }
 
   /**
@@ -163,7 +235,7 @@ export abstract class Agent<TOutput = any> {
     let filename = "";
 
     if (this.localDebug) {
-      filename += `${this.localStep}-`;
+      filename += `${this.promptStep}-`;
     }
 
     return Path.join(this.cacheDir, `${filename}${promptHash}-${type}.txt`);
@@ -293,9 +365,11 @@ export abstract class Agent<TOutput = any> {
 
   protected describeFeedback({
     actionName,
+    parameters,
     feedback,
   }: {
     actionName: string;
+    parameters: Record<string, string>;
     feedback: ActionFeedback;
   }): string {
     const action = this.actions.find((action) => action.name === actionName);
@@ -304,10 +378,26 @@ export abstract class Agent<TOutput = any> {
       return `Action "${actionName}" does not exist.`;
     }
 
-    return action.describeFeedback({ feedback });
+    return action.describeFeedback({ feedback, parameters });
   }
 
   protected describeActions(): string {
     return this.actions.map((action) => action.describe).join("\n");
+  }
+
+  protected describeFeedbackSteps({
+    feedbackSteps,
+  }: {
+    feedbackSteps: string[][];
+  }): string[] {
+    let describedSteps = [];
+
+    for (let i = 0; i < feedbackSteps.length; i++) {
+      describedSteps.push(`<Step number="${i + 1}">
+  ${feedbackSteps[i].join("\n  ")}
+</Step>`);
+    }
+
+    return describedSteps;
   }
 }

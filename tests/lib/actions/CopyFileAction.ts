@@ -1,6 +1,6 @@
 import { execSync } from "child_process";
 
-import { Action, ActionFeedback } from "../lib/actions/Action";
+import { Action, ActionFeedback } from "../../../lib/actions/Action";
 
 type CopyFileActionParametersNames = "source" | "destination";
 
@@ -9,6 +9,7 @@ export class CopyFileAction extends Action<CopyFileActionParametersNames> {
     super({
       name: "copyFile",
       usage: "copy a file from one place to another",
+      format: "singleline",
       parameters: [
         {
           name: "source",

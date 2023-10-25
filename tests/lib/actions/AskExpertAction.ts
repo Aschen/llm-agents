@@ -1,7 +1,7 @@
 import { execSync } from "child_process";
 import { createInterface } from "readline";
 
-import { Action, ActionFeedback } from "../lib/actions/Action";
+import { Action, ActionFeedback } from "../../../lib/actions/Action";
 
 type AskExpertActionParametersNames = "question";
 
@@ -10,6 +10,7 @@ export class AskExpertAction extends Action<AskExpertActionParametersNames> {
     super({
       name: "askExpert",
       usage: "ask a question to an expert when you need help or you are stuck",
+      format: "singleline",
       parameters: [
         {
           name: "question",
