@@ -5,9 +5,6 @@ import { FileCache } from "../../../lib/cache/FileCache";
 import { Action } from "../../../lib/actions/Action";
 
 export class BackupAgent extends Agent {
-  public actionsCount = 0;
-  public step = 0;
-
   private source: string;
   private destination: string;
 
