@@ -50,11 +50,12 @@ export abstract class LLMAction<TParametersNames extends string = any> {
 
   public async execute(
     parameters: Record<TParametersNames, string>
-  ): Promise<ActionFeedback> {
+  ): Promise<ActionFeedback & { name: string }> {
     const feedback = await this.executeAction(parameters);
 
     if (feedback.message.length > this.feedbackSizeLimit) {
       return {
+        name: this.name,
         message:
           feedback.message.slice(0, this.feedbackSizeLimit) +
           `[${this.feedbackSizeLimitMessage}]`,
@@ -62,7 +63,7 @@ export abstract class LLMAction<TParametersNames extends string = any> {
       };
     }
 
-    return feedback;
+    return { name: this.name, ...feedback };
   }
 
   get describe(): string {
