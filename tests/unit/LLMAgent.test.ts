@@ -1,7 +1,11 @@
 import { PromptTemplate } from "langchain/prompts";
 
-import { Agent, AgentOptions } from "../../lib/Agent";
-import { Action, ActionFeedback } from "../../lib/actions/Action";
+import { LLMAgent, AgentOptions } from "../../lib/LLMAgent";
+import {
+  LLMAction,
+  ActionFeedback,
+  LLMActionOptions,
+} from "../../lib/actions/LLMAction";
 import { ListFilesAction } from "../lib/actions/ListFilesAction";
 
 function* returnPrompt() {
@@ -11,19 +15,17 @@ function* returnPrompt() {
   `;
 }
 
-export class MockedListFilesAction extends Action<"directory"> {
-  constructor({ format }: { format?: "singleline" | "multiline" } = {}) {
-    super({
-      name: "listFiles",
-      usage: "list all files in a directory",
-      format,
-      parameters: [
-        {
-          name: "directory",
-          usage: "path of the directory to list",
-        },
-      ],
-    });
+export class MockedListFilesAction extends LLMAction<"directory"> {
+  public name = "listFiles";
+  public usage = "list all files in a directory";
+  public parameters = [
+    {
+      name: "directory" as const,
+      usage: "path of the directory to list",
+    },
+  ];
+  constructor({ format }: { format?: LLMActionOptions["format"] } = {}) {
+    super({ format });
   }
 
   protected async executeAction(
@@ -45,7 +47,7 @@ export class MockedListFilesAction extends Action<"directory"> {
   }
 }
 
-class TestableAgent extends Agent {
+class TestableAgent extends LLMAgent {
   protected template = new PromptTemplate({
     template: "Tell me a joke about {subject}.",
     inputVariables: ["subject"],
@@ -66,7 +68,7 @@ class TestableAgent extends Agent {
   }
 }
 
-describe("Agent", () => {
+describe("LLMAgent", () => {
   describe("run", () => {
     it("should run the agent", async () => {
       const answer1 = `<Action name="listFiles" parameter:directory="/home/aschen" />`;

@@ -1,12 +1,12 @@
 import { PromptTemplate } from "langchain/prompts";
 
-import { Agent } from "../../../lib/Agent";
+import { LLMAgent } from "../../../lib/LLMAgent";
 import { FileCache } from "../../../lib/cache/FileCache";
 import { ListFilesAction } from "../../lib/actions/ListFilesAction";
 import { CopyFileAction } from "../../lib/actions/CopyFileAction";
 import { CreateDirectoryAction } from "../../lib/actions/CreateDirectoryAction";
 
-export class BackupAgent extends Agent {
+export class BackupAgent extends LLMAgent {
   private source: string;
   private destination: string;
 

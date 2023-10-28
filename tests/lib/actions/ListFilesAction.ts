@@ -1,22 +1,24 @@
 import { execSync } from "child_process";
 
-import { Action, ActionFeedback } from "../../../lib/actions/Action";
+import {
+  LLMAction,
+  ActionFeedback,
+  LLMActionOptions,
+} from "../../../lib/actions/LLMAction";
 
 type ListFilesActionParametersNames = "directory";
 
-export class ListFilesAction extends Action<ListFilesActionParametersNames> {
-  constructor({ format }: { format?: "singleline" | "multiline" } = {}) {
-    super({
-      name: "listFiles",
-      usage: "list all files in a directory",
-      format,
-      parameters: [
-        {
-          name: "directory",
-          usage: "path of the directory to list",
-        },
-      ],
-    });
+export class ListFilesAction extends LLMAction<ListFilesActionParametersNames> {
+  public name = "listFiles";
+  public usage = "list all files in a directory";
+  public parameters = [
+    {
+      name: "directory" as const,
+      usage: "path of the directory to list",
+    },
+  ];
+  constructor({ format }: { format?: LLMActionOptions["format"] } = {}) {
+    super({ format });
   }
 
   protected async executeAction(

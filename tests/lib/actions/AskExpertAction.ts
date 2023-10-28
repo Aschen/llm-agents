@@ -1,24 +1,19 @@
-import { execSync } from "child_process";
 import { createInterface } from "readline";
 
-import { Action, ActionFeedback } from "../../../lib/actions/Action";
+import { LLMAction, ActionFeedback } from "../../../lib/actions/LLMAction";
 
 type AskExpertActionParametersNames = "question";
 
-export class AskExpertAction extends Action<AskExpertActionParametersNames> {
-  constructor() {
-    super({
-      name: "askExpert",
-      usage: "ask a question to an expert when you need help or you are stuck",
-      format: "singleline",
-      parameters: [
-        {
-          name: "question",
-          usage: "question to ask to an expert",
-        },
-      ],
-    });
-  }
+export class AskExpertAction extends LLMAction<AskExpertActionParametersNames> {
+  public name = "askExpert";
+  public usage =
+    "ask a question to an expert when you need help or you are stuck";
+  public parameters = [
+    {
+      name: "question" as const,
+      usage: "question to ask to an expert",
+    },
+  ];
 
   protected async executeAction(
     parameters: Record<AskExpertActionParametersNames, string>

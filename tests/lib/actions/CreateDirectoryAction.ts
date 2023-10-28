@@ -1,23 +1,18 @@
 import { execSync } from "child_process";
 
-import { Action, ActionFeedback } from "../../../lib/actions/Action";
+import { LLMAction, ActionFeedback } from "../../../lib/actions/LLMAction";
 
 type CreateDirectoryActionParametersNames = "path";
 
-export class CreateDirectoryAction extends Action<CreateDirectoryActionParametersNames> {
-  constructor() {
-    super({
-      name: "createDirectory",
-      usage: "create a directory",
-      format: "singleline",
-      parameters: [
-        {
-          name: "path",
-          usage: "path of the directory to create",
-        },
-      ],
-    });
-  }
+export class CreateDirectoryAction extends LLMAction<CreateDirectoryActionParametersNames> {
+  public name = "createDirectory";
+  public usage = "create a directory";
+  public parameters = [
+    {
+      name: "path" as const,
+      usage: "path of the directory to create",
+    },
+  ];
 
   protected async executeAction(
     parameters: Record<CreateDirectoryActionParametersNames, string>

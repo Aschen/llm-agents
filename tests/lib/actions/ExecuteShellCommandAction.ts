@@ -1,22 +1,18 @@
 import { execSync } from "child_process";
 
-import { Action, ActionFeedback } from "../../../lib/actions/Action";
+import { LLMAction, ActionFeedback } from "../../../lib/actions/LLMAction";
 
 type ExecuteShellCommandActionParametersNames = "command";
 
-export class ExecuteShellCommandAction extends Action<ExecuteShellCommandActionParametersNames> {
-  constructor() {
-    super({
-      name: "executeShellCommand",
-      usage: "execute a shell command",
-      parameters: [
-        {
-          name: "command",
-          usage: "command to execute",
-        },
-      ],
-    });
-  }
+export class ExecuteShellCommandAction extends LLMAction<ExecuteShellCommandActionParametersNames> {
+  public name = "executeShellCommand";
+  public usage = "execute a shell command";
+  public parameters = [
+    {
+      name: "command" as const,
+      usage: "command to execute",
+    },
+  ];
 
   protected async executeAction(
     parameters: Record<ExecuteShellCommandActionParametersNames, string>

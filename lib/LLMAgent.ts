@@ -4,7 +4,7 @@ import { OpenAI } from "langchain/llms/openai";
 import { PromptTemplate } from "langchain/prompts";
 
 import { CacheEngine } from "./cache/CacheEngine";
-import { Action, ActionFeedback } from "./actions/Action";
+import { LLMAction, ActionFeedback } from "./actions/LLMAction";
 import { DoneAction } from "./actions/DoneAction";
 
 const LOCAL_DEBUG = process.env.NODE_ENV !== "production";
@@ -17,7 +17,7 @@ function kebabCase(str) {
 }
 
 export type AgentOptions = {
-  actions?: Action[];
+  actions?: LLMAction[];
   verbose?: boolean;
   cacheEngine?: CacheEngine;
   localDebug?: boolean;
@@ -34,7 +34,7 @@ const MODELS_COST = {
   },
 } as const;
 
-export abstract class Agent {
+export abstract class LLMAgent {
   protected cacheInitialized = false;
   protected localDebug: boolean;
   protected promptStep = -1;
@@ -42,7 +42,7 @@ export abstract class Agent {
   public actionsCount = 0;
   public actionsErrorCount = 0;
 
-  private actions: Action[];
+  private actions: LLMAction[];
 
   protected verbose: boolean;
   protected cacheEngine: CacheEngine | null;

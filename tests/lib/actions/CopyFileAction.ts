@@ -1,27 +1,22 @@
 import { execSync } from "child_process";
 
-import { Action, ActionFeedback } from "../../../lib/actions/Action";
+import { LLMAction, ActionFeedback } from "../../../lib/actions/LLMAction";
 
 type CopyFileActionParametersNames = "source" | "destination";
 
-export class CopyFileAction extends Action<CopyFileActionParametersNames> {
-  constructor() {
-    super({
-      name: "copyFile",
-      usage: "copy a file from one place to another",
-      format: "singleline",
-      parameters: [
-        {
-          name: "source",
-          usage: "path of the file to copy",
-        },
-        {
-          name: "destination",
-          usage: "path of the destination file",
-        },
-      ],
-    });
-  }
+export class CopyFileAction extends LLMAction<CopyFileActionParametersNames> {
+  public name = "copyFile";
+  public usage = "copy a file from one place to another";
+  public parameters = [
+    {
+      name: "source" as const,
+      usage: "path of the file to copy",
+    },
+    {
+      name: "destination" as const,
+      usage: "path of the destination file",
+    },
+  ];
 
   protected async executeAction(
     parameters: Record<CopyFileActionParametersNames, string>

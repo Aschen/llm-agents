@@ -8,10 +8,20 @@ export type ActionFeedback = {
   type: "error" | "success";
 };
 
-export abstract class Action<TParametersNames extends string = any> {
-  public name: string;
-  public usage: string;
-  public parameters: ActionParameter<TParametersNames>[];
+export type LLMActionOptions = {
+  /**
+   * Maximum number of tokens in the feedback message.
+   */
+  feedbackSizeLimit?: number;
+  feedbackSizeLimitMessage?: string;
+  verbose?: boolean;
+  format?: "singleline" | "multiline";
+};
+
+export abstract class LLMAction<TParametersNames extends string = any> {
+  public abstract name: string;
+  public abstract usage: string;
+  public abstract parameters: ActionParameter<TParametersNames>[];
 
   /**
    * Maximum number of characters in the feedback message.
@@ -19,31 +29,14 @@ export abstract class Action<TParametersNames extends string = any> {
   private feedbackSizeLimit: number;
   private feedbackSizeLimitMessage: string;
   private verbose: boolean;
-  private format: "singleline" | "multiline";
+  private format: LLMActionOptions["format"];
 
   constructor({
-    name,
-    usage,
-    parameters,
     format = "singleline",
     feedbackSizeLimit = 500,
     feedbackSizeLimitMessage = "action feedback was truncated because it exceeded the size limit",
     verbose = true,
-  }: {
-    name: string;
-    usage: string;
-    parameters: ActionParameter<TParametersNames>[];
-    /**
-     * Maximum number of tokens in the feedback message.
-     */
-    feedbackSizeLimit?: number;
-    feedbackSizeLimitMessage?: string;
-    verbose?: boolean;
-    format?: "singleline" | "multiline";
-  }) {
-    this.name = name;
-    this.usage = usage;
-    this.parameters = parameters;
+  }: LLMActionOptions = {}) {
     this.format = format;
 
     this.feedbackSizeLimit = feedbackSizeLimit * 4;
