@@ -42,7 +42,7 @@ export abstract class LLMAgent {
   public actionsCount = 0;
   public actionsErrorCount = 0;
 
-  private actions: LLMAction[];
+  protected actions: LLMAction[];
 
   protected verbose: boolean;
   protected cacheEngine: CacheEngine | null;
@@ -76,10 +76,10 @@ export abstract class LLMAgent {
 
   protected abstract formatPrompt({
     actions,
-    feedbackSteps,
+    feedbackSteps = [],
   }: {
     actions: string;
-    feedbackSteps: string[];
+    feedbackSteps?: string[];
   }): Promise<string>;
 
   constructor({
@@ -117,7 +117,7 @@ export abstract class LLMAgent {
         prompt,
       });
 
-      const actions = this.extractActions(answer);
+      const actions = this.extractActions({ answer });
 
       feedbackSteps[this.step] = [];
       let error = false;
@@ -261,9 +261,11 @@ export abstract class LLMAgent {
     this.cacheInitialized = true;
   }
 
-  protected extractActions(
-    answer: string
-  ): Array<{ name: string; parameters: any }> {
+  protected extractActions({
+    answer,
+  }: {
+    answer: string;
+  }): Array<{ name: string; parameters: any }> {
     const actions: Array<{ name: string; parameters: any }> = [];
     const lines = answer.split(/\r?\n/);
     let insideActionBlock = false;
