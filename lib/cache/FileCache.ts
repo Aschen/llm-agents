@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync } from 'node:fs';
 import {
   access,
   constants,
@@ -6,15 +6,17 @@ import {
   readFile,
   unlink,
   stat,
-} from "node:fs/promises";
-import * as Path from "path";
+} from 'node:fs/promises';
+import * as Path from 'path';
 
-import { CacheEngine } from "./CacheEngine";
+import { CacheEngine } from './CacheEngine';
+
+const DEV_MODE = process.env.NODE_ENV !== 'production';
 
 export class FileCache extends CacheEngine {
   public cacheDir: string;
 
-  constructor({ cacheDir = ".cache" }: { cacheDir?: string } = {}) {
+  constructor({ cacheDir = '.cache' }: { cacheDir?: string } = {}) {
     super();
 
     this.cacheDir = cacheDir;
@@ -23,7 +25,7 @@ export class FileCache extends CacheEngine {
   }
 
   public async get(cacheKey: string) {
-    return readFile(Path.join(this.cacheDir, cacheKey), "utf-8");
+    return readFile(Path.join(this.cacheDir, cacheKey), 'utf-8');
   }
 
   public async has(cacheKey: string) {
@@ -45,7 +47,11 @@ export class FileCache extends CacheEngine {
       mkdirSync(dirname, { recursive: true });
     }
 
-    return writeFile(Path.join(this.cacheDir, cacheKey), content);
+    const fullPath = Path.join(this.cacheDir, cacheKey);
+
+    console.log(`FileCache: write ${fullPath}`);
+
+    return writeFile(fullPath, content);
   }
 
   public async delete(cacheKey: string) {
@@ -58,7 +64,7 @@ export class FileCache extends CacheEngine {
 
       return info.isDirectory();
     } catch (error) {
-      if (error.code === "ENOENT") {
+      if (error.code === 'ENOENT') {
         return false;
       }
 
