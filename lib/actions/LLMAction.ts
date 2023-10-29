@@ -5,7 +5,7 @@ export type ActionParameter<TParametersNames extends string> = {
 
 export type ActionFeedback = {
   message: string;
-  type: "error" | "success";
+  type: 'error' | 'success';
 };
 
 export type LLMActionOptions = {
@@ -15,7 +15,7 @@ export type LLMActionOptions = {
   feedbackSizeLimit?: number;
   feedbackSizeLimitMessage?: string;
   verbose?: boolean;
-  format?: "singleline" | "multiline";
+  format?: 'singleline' | 'multiline';
 };
 
 export abstract class LLMAction<TParametersNames extends string = any> {
@@ -29,12 +29,12 @@ export abstract class LLMAction<TParametersNames extends string = any> {
   private feedbackSizeLimit: number;
   private feedbackSizeLimitMessage: string;
   private verbose: boolean;
-  private format: LLMActionOptions["format"];
+  private format: LLMActionOptions['format'];
 
   constructor({
-    format = "singleline",
+    format = 'singleline',
     feedbackSizeLimit = 500,
-    feedbackSizeLimitMessage = "action feedback was truncated because it exceeded the size limit",
+    feedbackSizeLimitMessage = 'action feedback was truncated because it exceeded the size limit',
     verbose = true,
   }: LLMActionOptions = {}) {
     this.format = format;
@@ -67,7 +67,7 @@ export abstract class LLMAction<TParametersNames extends string = any> {
   }
 
   get describe(): string {
-    if (this.format === "singleline") {
+    if (this.format === 'singleline') {
       return this.describeSingleLine;
     }
 
@@ -84,20 +84,20 @@ export abstract class LLMAction<TParametersNames extends string = any> {
       result += `\n  <Parameter name="${param.name}">\n    // ${param.usage}\n  </Parameter>`;
     }
 
-    result += "\n</Action>";
+    result += '\n</Action>';
 
     return result;
   }
 
   private get describeSingleLine(): string {
-    let result = `<Action name="${this.name}"`;
+    let result = `<Action name="${this.name}" usage="${this.usage}">`;
     // let result = `<Action thought="<explain here why you need to execute the action>" name="${this.name}"`;
 
     for (const param of this.parameters) {
       result += ` parameter:${param.name}="<${param.usage}>"`;
     }
 
-    result += " />";
+    result += ' />';
 
     return result;
   }
@@ -109,7 +109,7 @@ export abstract class LLMAction<TParametersNames extends string = any> {
     feedback: ActionFeedback;
     parameters: Record<string, string>;
   }) {
-    if (this.format === "singleline") {
+    if (this.format === 'singleline') {
       return this.describeFeedbackSingleline({ feedback, parameters });
     }
     return this.describeFeedbackMultiline({ feedback, parameters });
@@ -143,7 +143,7 @@ export abstract class LLMAction<TParametersNames extends string = any> {
       }\n    </Parameter>`;
     }
     result += `\n    <Feedback type="${feedback.type}">\n      ${feedback.message}\n    </Feedback>`;
-    result += "\n  </Action>";
+    result += '\n  </Action>';
     return result;
   }
 
