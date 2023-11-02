@@ -14,32 +14,28 @@ $ npm install llm-agents
 
 ### Actions
 
-Extends the [Action](lib/actions/Action.ts) class to define an action with:
+Extends the [LLMAction](lib/actions/LLMAction.ts) class to define an action with:
 
 - name
 - usage
 - parameters
 
 ```ts
-import { execSync } from "child_process";
+import { execSync } from 'child_process';
 
-import { Action, ActionFeedback } from "llm-agents";
+import { Action, ActionFeedback } from 'llm-agents';
 
-type ExecuteShellCommandActionParametersNames = "command";
+type ExecuteShellCommandActionParametersNames = 'command';
 
-export class ExecuteShellCommandAction extends Action<ExecuteShellCommandActionParametersNames> {
-  constructor() {
-    super({
-      name: "executeShellCommand",
-      usage: "execute a shell command",
-      parameters: [
-        {
-          name: "command",
-          usage: "command to execute",
-        },
-      ],
-    });
-  }
+export class ExecuteShellCommandAction extends LLMAction<ExecuteShellCommandActionParametersNames> {
+  public name = 'executeShellCommand';
+  public usage = 'execute a shell command';
+  public parameters = [
+    {
+      name: 'command' as const,
+      usage: 'command to execute',
+    },
+  ];
 
   protected async executeAction(
     parameters: Record<ExecuteShellCommandActionParametersNames, string>
@@ -48,14 +44,15 @@ export class ExecuteShellCommandAction extends Action<ExecuteShellCommandActionP
 
     try {
       const result = execSync(command);
+
       return {
         message: `$ ${command}\n${result.toString()}`,
-        type: "success",
+        type: 'success',
       };
     } catch (error) {
       return {
         message: `$ ${command}\n${error.message}`,
-        type: "error",
+        type: 'error',
       };
     }
   }
@@ -77,17 +74,17 @@ Extends the [Agent](lib/Agent.ts) class to define an Agent with:
 - actions (optionnal)
 
 ```ts
-import { PromptTemplate } from "langchain/prompts";
+import { PromptTemplate } from 'langchain/prompts';
 
-import { Action, FileCache, Agent } from "llm-agents";
+import { LLMAction, FileCache, LLMAgent } from 'llm-agents';
 
 import {
   CreateDirectoryAction,
   CopyFileAction,
   ListFilesAction,
-} from "./actions";
+} from './actions';
 
-export class BackupAgent extends Agent {
+export class BackupAgent extends LLMAgent {
   private source: string;
   private destination: string;
 
@@ -115,7 +112,7 @@ Skip node_modules directories.
 Start by a sentence summarizing the current state of your task according to the last action result.
 Then, answer with the actions you want to execute.
 `,
-    inputVariables: ["source", "destination", "actions", "feedback"],
+    inputVariables: ['source', 'destination', 'actions', 'feedback'],
   });
 
   constructor({
@@ -149,7 +146,7 @@ Then, answer with the actions you want to execute.
       source: this.source,
       destination: this.destination,
       actions,
-      feedback: feedbackSteps.join("\n\n"),
+      feedback: feedbackSteps.join('\n\n'),
     });
   }
 }
