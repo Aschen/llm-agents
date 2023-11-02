@@ -8,6 +8,29 @@ export type ActionFeedback = {
   type: 'error' | 'success';
 };
 
+export function describeMultilineAction({
+  usage,
+  name,
+  parameters,
+}: {
+  name: string;
+  usage: string;
+  parameters: Record<string, string>[];
+}) {
+  let result = `Use this action to: ${usage}\n<Action name="${name}">`;
+
+  // result +=
+  //   '\n  <Thought explanation="<explain here why you need to execute the action>"/>';
+
+  for (const param of parameters) {
+    result += `\n  <Parameter name="${param.name}">\n    // ${param.usage}\n  </Parameter>`;
+  }
+
+  result += '\n</Action>';
+
+  return result;
+}
+
 export type LLMActionOptions = {
   /**
    * Maximum number of tokens in the feedback message.
@@ -18,7 +41,7 @@ export type LLMActionOptions = {
   format?: 'singleline' | 'multiline';
 };
 
-export abstract class LLMAction<TParametersNames extends string = any> {
+export abstract class LLMAction<TParametersNames extends string = string> {
   public abstract name: string;
   public abstract usage: string;
   public abstract parameters: ActionParameter<TParametersNames>[];
@@ -71,22 +94,11 @@ export abstract class LLMAction<TParametersNames extends string = any> {
       return this.describeSingleLine;
     }
 
-    return this.describeMultiLine;
-  }
-
-  private get describeMultiLine(): string {
-    let result = `Use this action to: ${this.usage}\n<Action name="${this.name}">`;
-
-    // result +=
-    //   '\n  <Thought explanation="<explain here why you need to execute the action>"/>';
-
-    for (const param of this.parameters) {
-      result += `\n  <Parameter name="${param.name}">\n    // ${param.usage}\n  </Parameter>`;
-    }
-
-    result += '\n</Action>';
-
-    return result;
+    return describeMultilineAction({
+      name: this.name,
+      usage: this.usage,
+      parameters: this.parameters,
+    });
   }
 
   private get describeSingleLine(): string {

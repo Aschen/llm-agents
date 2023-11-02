@@ -1,12 +1,12 @@
-import { PromptTemplate } from "langchain/prompts";
+import { PromptTemplate } from 'langchain/prompts';
 
-import { LLMAgent, AgentOptions } from "../../lib/LLMAgent";
+import { LLMAgent, LLMAgentOptions } from '../../lib/LLMAgent';
 import {
   LLMAction,
   ActionFeedback,
   LLMActionOptions,
-} from "../../lib/actions/LLMAction";
-import { ListFilesAction } from "../lib/actions/ListFilesAction";
+} from '../../lib/actions/LLMAction';
+import { ListFilesAction } from '../lib/actions/ListFilesAction';
 
 function* returnPrompt() {
   yield `
@@ -15,33 +15,33 @@ function* returnPrompt() {
   `;
 }
 
-export class MockedListFilesAction extends LLMAction<"directory"> {
-  public name = "listFiles";
-  public usage = "list all files in a directory";
+export class MockedListFilesAction extends LLMAction<'directory'> {
+  public name = 'listFiles';
+  public usage = 'list all files in a directory';
   public parameters = [
     {
-      name: "directory" as const,
-      usage: "path of the directory to list",
+      name: 'directory' as const,
+      usage: 'path of the directory to list',
     },
   ];
-  constructor({ format }: { format?: LLMActionOptions["format"] } = {}) {
+  constructor({ format }: { format?: LLMActionOptions['format'] } = {}) {
     super({ format });
   }
 
   protected async executeAction(
-    parameters: Record<"directory", string>
+    parameters: Record<'directory', string>
   ): Promise<ActionFeedback> {
     const { directory } = parameters;
 
     try {
       return {
         message: `Files in ${directory}: so.rs much.ts files.go`,
-        type: "success",
+        type: 'success',
       };
     } catch (error) {
       return {
         message: error.message as string,
-        type: "error",
+        type: 'error',
       };
     }
   }
@@ -49,11 +49,11 @@ export class MockedListFilesAction extends LLMAction<"directory"> {
 
 class TestableAgent extends LLMAgent {
   protected template = new PromptTemplate({
-    template: "Tell me a joke about {subject}.",
-    inputVariables: ["subject"],
+    template: 'Tell me a joke about {subject}.',
+    inputVariables: ['subject'],
   });
 
-  constructor(options: AgentOptions = {}) {
+  constructor(options: LLMAgentOptions = {}) {
     super(options);
   }
 
@@ -64,13 +64,13 @@ class TestableAgent extends LLMAgent {
     actions: string;
     feedbackSteps: string[];
   }) {
-    return `${actions}${feedbackSteps.join("\n")}`;
+    return `${actions}${feedbackSteps.join('\n')}`;
   }
 }
 
-describe("LLMAgent", () => {
-  describe("run", () => {
-    it("should run the agent", async () => {
+describe('LLMAgent', () => {
+  describe('run', () => {
+    it('should run the agent', async () => {
       const answer1 = `<Action name="listFiles" parameter:directory="/home/aschen" />`;
       const answer2 = `<Action name="listFiles" parameter:directory="/home/ocav" />`;
       const answer3 = `<Action name="done" />`;
@@ -90,24 +90,24 @@ describe("LLMAgent", () => {
       const calls = agent.callModel.mock.calls;
       // first prompt contains only actions list
       expect(calls[0][0]).toEqual({
-        model: "gpt-4",
+        model: 'gpt-4',
         prompt: `<Action name=\"listFiles\" parameter:directory=\"<path of the directory to list>\" />\n<Action name=\"done\" />`,
       });
       // second prompt contains actions list and 1 feedback step
       expect(calls[1][0]).toEqual({
-        model: "gpt-4",
+        model: 'gpt-4',
         prompt: `<Action name=\"listFiles\" parameter:directory=\"<path of the directory to list>\" />\n<Action name=\"done\" /><Step number=\"1\">\n  <Action name=\"listFiles\" parameter:directory=\"/home/aschen\" feedback:type=\"success\" feedback:message=\"Files in /home/aschen: so.rs much.ts files.go\" />\n</Step>`,
       });
       // third prompt contains actions list and 2 feedback step
       expect(calls[2][0]).toEqual({
-        model: "gpt-4",
+        model: 'gpt-4',
         prompt: `<Action name=\"listFiles\" parameter:directory=\"<path of the directory to list>\" />\n<Action name=\"done\" /><Step number=\"1\">\n  <Action name=\"listFiles\" parameter:directory=\"/home/aschen\" feedback:type=\"success\" feedback:message=\"Files in /home/aschen: so.rs much.ts files.go\" />\n</Step>\n<Step number=\"2\">\n  <Action name=\"listFiles\" parameter:directory=\"/home/ocav\" feedback:type=\"success\" feedback:message=\"Files in /home/ocav: so.rs much.ts files.go\" />\n</Step>`,
       });
     });
   });
 
-  describe("extractActions", () => {
-    it("should extract actions", () => {
+  describe('extractActions', () => {
+    it('should extract actions', () => {
       const agent = new TestableAgent();
       const answer = `
       <Action name="listFile" parameter:directory="/home/aschen" />
@@ -143,47 +143,47 @@ describe("LLMAgent", () => {
 
       expect(actions.length).toBe(5);
 
-      expect(actions[0].name).toBe("listFile");
+      expect(actions[0].name).toBe('listFile');
       expect(actions[0].parameters).toEqual({
-        directory: "/home/aschen",
+        directory: '/home/aschen',
       });
-      expect(actions[1].name).toBe("readFuntion");
+      expect(actions[1].name).toBe('readFuntion');
       expect(actions[1].parameters).toEqual({
-        name: "foobar",
-        code: "const a = 1;\n          const b = 2;",
+        name: 'foobar',
+        code: 'const a = 1;\n          const b = 2;',
       });
-      expect(actions[2].name).toBe("listFile");
+      expect(actions[2].name).toBe('listFile');
       expect(actions[2].parameters).toEqual({
-        directory: "/home/ocav",
+        directory: '/home/ocav',
       });
-      expect(actions[3].name).toBe("createDirectory");
+      expect(actions[3].name).toBe('createDirectory');
       expect(actions[3].parameters).toEqual({
-        directory: "/home/aschen",
+        directory: '/home/aschen',
       });
-      expect(actions[4].name).toBe("readFuntion");
+      expect(actions[4].name).toBe('readFuntion');
       expect(actions[4].parameters).toEqual({
-        name: "barfoo",
-        code: "const foobar = 1;",
+        name: 'barfoo',
+        code: 'const foobar = 1;',
       });
     });
   });
 
-  describe("describeFeedback", () => {
-    it("should add feedback into action with multiline format", () => {
+  describe('describeFeedback', () => {
+    it('should add feedback into action with multiline format', () => {
       const agent = new TestableAgent({
-        actions: [new ListFilesAction({ format: "multiline" })],
+        actions: [new ListFilesAction({ format: 'multiline' })],
       });
       const feedback: ActionFeedback = {
-        type: "error",
-        message: "directory does not exists",
+        type: 'error',
+        message: 'directory does not exists',
       };
       const parameters = {
-        directory: "/home/aschen",
+        directory: '/home/aschen',
       };
 
       // @ts-ignore
       const result = agent.describeFeedback({
-        actionName: "listFiles",
+        actionName: 'listFiles',
         parameters,
         feedback,
       });
@@ -198,21 +198,21 @@ describe("LLMAgent", () => {
   </Action>`);
     });
 
-    it("should add feedback into action with singleline format", () => {
+    it('should add feedback into action with singleline format', () => {
       const agent = new TestableAgent({
-        actions: [new ListFilesAction({ format: "singleline" })],
+        actions: [new ListFilesAction({ format: 'singleline' })],
       });
       const feedback: ActionFeedback = {
-        type: "error",
-        message: "directory does not exists",
+        type: 'error',
+        message: 'directory does not exists',
       };
       const parameters = {
-        directory: "/home/aschen",
+        directory: '/home/aschen',
       };
 
       // @ts-ignore
       const result = agent.describeFeedback({
-        actionName: "listFiles",
+        actionName: 'listFiles',
         parameters,
         feedback,
       });
