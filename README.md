@@ -67,7 +67,7 @@ Examples:
 
 ### Agents
 
-Extends the [Agent](lib/Agent.ts) class to define an Agent with:
+Extends the [LLMAgent](lib/LLMAgent.ts) class to define an Agent with:
 
 - template content
 - template formating
