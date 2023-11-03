@@ -31,34 +31,43 @@ export abstract class LLMAgentOneShot<
     modelName?: LLMAgentAvailableModels;
     temperature?: number;
   } = {}): Promise<ParsedAction<TParametersNames>[]> {
-    const prompt = await this.formatPrompt({
-      actions: this.describeActions(),
-    });
+    try {
+      const prompt = await this.formatPrompt({
+        actions: this.describeActions(),
+      });
 
-    const answer = await this.callModel({
-      model: modelName,
-      prompt,
-      temperature,
-    });
+      const answer = await this.callModel({
+        model: modelName,
+        prompt,
+        temperature,
+      });
 
-    const actions = this.extractActions({ answer });
+      const actions = this.extractActions({ answer });
 
-    // If user registered actions, execute them
-    if (
-      this.actions.length > 1 ||
-      (this.actions.length === 0 && this.actions[0].name !== 'done')
-    ) {
-      for (const action of actions) {
-        const feedback = await this.executeAction(action);
+      // If user registered actions, execute them
+      if (
+        this.actions.length > 1 ||
+        (this.actions.length === 0 && this.actions[0].name !== 'done')
+      ) {
+        for (const action of actions) {
+          const feedback = await this.executeAction(action);
 
-        if (feedback.type === 'error') {
-          this.actionsErrorCount++;
-        } else {
-          this.actionsCount++;
+          if (feedback.type === 'error') {
+            this.actionsErrorCount++;
+          } else {
+            this.actionsCount++;
+          }
         }
       }
-    }
 
-    return actions;
+      return actions;
+    } catch (error) {
+      if (this.tries === 0) {
+        throw error;
+      }
+
+      this.tries--;
+      return this.run({ modelName, temperature });
+    }
   }
 }

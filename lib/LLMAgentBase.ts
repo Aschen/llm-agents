@@ -21,6 +21,7 @@ export type LLMAgentOptions = {
   verbose?: boolean;
   cacheEngine?: CacheEngine;
   localDebug?: boolean;
+  tries?: number;
 };
 
 const MODELS_COST = {
@@ -42,12 +43,14 @@ export type ParsedAction<TParametersNames extends string = string> = {
 };
 
 export abstract class LLMAgentBase {
-  protected cacheInitialized = false;
-  protected localDebug: boolean;
-  protected promptStep = -1;
   public step = 0;
   public actionsCount = 0;
   public actionsErrorCount = 0;
+
+  protected cacheInitialized = false;
+  protected localDebug: boolean;
+  protected promptStep = -1;
+  protected tries: number;
 
   protected actions: LLMAction[];
 
@@ -79,11 +82,13 @@ export abstract class LLMAgentBase {
     verbose = true,
     cacheEngine = null,
     localDebug = LOCAL_DEBUG,
+    tries = 1,
   }: LLMAgentOptions = {}) {
     this.actions = [...actions, new DoneAction()];
     this.verbose = verbose;
     this.cacheEngine = cacheEngine;
     this.localDebug = localDebug;
+    this.tries = tries;
 
     this.tokens = {
       input: 0,

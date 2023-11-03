@@ -1,6 +1,6 @@
 import { PromptTemplate } from 'langchain/prompts';
 
-import { LLMAgentOptions, LLMAgentBase } from './LLMAgentBase';
+import { LLMAgentOptions, LLMAgentBase, ParsedAction } from './LLMAgentBase';
 
 export abstract class LLMAgent extends LLMAgentBase {
   protected abstract template: PromptTemplate;
@@ -34,7 +34,18 @@ export abstract class LLMAgent extends LLMAgentBase {
         prompt,
       });
 
-      const actions = this.extractActions({ answer });
+      let actions: ParsedAction[];
+
+      try {
+        actions = this.extractActions({ answer });
+      } catch (error) {
+        if (this.tries === 0) {
+          throw error;
+        }
+
+        this.tries--;
+        continue;
+      }
 
       feedbackSteps[this.step] = [];
       let error = false;
