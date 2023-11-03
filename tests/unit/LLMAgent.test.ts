@@ -1,3 +1,5 @@
+import { describe, expect, it } from 'bun:test';
+
 import { PromptTemplate } from 'langchain/prompts';
 
 import { LLMAgent, LLMAgentOptions } from '../../lib/LLMAgent';
@@ -113,9 +115,7 @@ describe('LLMAgent', () => {
       <Action name="listFile" parameter:directory="/home/aschen" />
 
       <Action name="readFuntion">
-        <Parameter name="name">
-          foobar
-        </Parameter>
+        <Parameter name="name">foobar</Parameter>
       
         <Parameter name="code">
           const a = 1;
@@ -139,7 +139,7 @@ describe('LLMAgent', () => {
       `;
 
       // @ts-ignore
-      const actions = agent.extractActions(answer);
+      const actions = agent.extractActions({ answer });
 
       expect(actions.length).toBe(5);
 

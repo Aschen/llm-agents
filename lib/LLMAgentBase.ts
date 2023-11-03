@@ -311,6 +311,13 @@ export abstract class LLMAgentBase extends EventEmitter<LLMAgentBaseListeners> {
         if (nameMatch) {
           currentParameterName = nameMatch[1];
         }
+        const parameterMatch = trimmedLine.match(
+          /<Parameter name="([^"]+)">(.*?)<\/Parameter>/
+        );
+        if (parameterMatch) {
+          const [, paramName, paramValue] = parameterMatch;
+          currentAction.parameters[paramName] = paramValue;
+        }
       } else if (
         insideActionBlock &&
         insideParameterBlock &&
