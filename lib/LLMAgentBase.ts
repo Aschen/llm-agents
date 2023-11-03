@@ -45,18 +45,26 @@ export type ParsedAction<TParametersNames extends string = string> = {
 };
 
 type LLMAgentBaseListeners = {
+  /**
+   * Barfoo
+   */
   prompt: ({
     id,
     prompt,
+    cost,
   }: {
     id: string;
     prompt: string;
     cost: number;
   }) => void;
 
+  /**
+   * Foobar
+   */
   answer: ({
     id,
     answer,
+    cost,
   }: {
     id: string;
     answer: string;

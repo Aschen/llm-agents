@@ -27,18 +27,10 @@ export class EventEmitter<TAvailableListeners extends AvailableListener> {
       return;
     }
     for (const callback of this.listeners[key]) {
+      // Shall we prevent people from crashing node by returning a rejected promise
+      // and silence errors or shall we assume people can handle their promises?
+      // Let's have some hope in humanity and assume the latter.
       callback(arg);
     }
-  }
-}
-
-class Test extends EventEmitter<{
-  test: (arg: string) => void;
-}> {
-  constructor() {
-    super();
-    this.on('test', (arg) => {
-      console.log(arg);
-    });
   }
 }
