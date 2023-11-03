@@ -6,6 +6,8 @@ import { PromptTemplate } from 'langchain/prompts';
 import { CacheEngine } from './cache/CacheEngine';
 import { LLMAction, ActionFeedback } from './actions/LLMAction';
 import { DoneAction } from './actions/DoneAction';
+import { EventEmitter } from './EventEmitter';
+import { uuidv4 } from './helpers/uuid';
 
 const LOCAL_DEBUG = process.env.NODE_ENV !== 'production';
 
@@ -42,7 +44,27 @@ export type ParsedAction<TParametersNames extends string = string> = {
   parameters: Record<TParametersNames, string>;
 };
 
-export abstract class LLMAgentBase {
+type LLMAgentBaseListeners = {
+  prompt: ({
+    id,
+    prompt,
+  }: {
+    id: string;
+    prompt: string;
+    cost: number;
+  }) => void;
+
+  answer: ({
+    id,
+    answer,
+  }: {
+    id: string;
+    answer: string;
+    cost: number;
+  }) => void;
+};
+
+export abstract class LLMAgentBase extends EventEmitter<LLMAgentBaseListeners> {
   public step = 0;
   public actionsCount = 0;
   public actionsErrorCount = 0;
@@ -84,6 +106,8 @@ export abstract class LLMAgentBase {
     localDebug = LOCAL_DEBUG,
     tries = 1,
   }: LLMAgentOptions = {}) {
+    super();
+
     this.actions = [...actions, new DoneAction()];
     this.verbose = verbose;
     this.cacheEngine = cacheEngine;
@@ -124,20 +148,24 @@ export abstract class LLMAgentBase {
       await this.cacheEngine.set(promptCacheKey, prompt);
 
       const answerCacheKey = this.cacheKey({ type: 'answer', prompt });
+
       if (await this.cacheEngine.has(answerCacheKey)) {
         this.log(`Using cached answer at "${answerCacheKey}"`);
 
         const answer = await this.cacheEngine.get(answerCacheKey);
 
-        await this.computeCosts({ llm, prompt, answer });
-
         return answer;
       }
     }
 
+    const id = uuidv4();
+    const inputCost = this.computePromptCosts({ prompt });
+    this.emit('prompt', { id, prompt, cost: inputCost });
+
     const answer = await llm.call(prompt);
 
-    await this.computeCosts({ llm, prompt, answer });
+    const outputCost = this.computeAnswerCosts({ answer });
+    this.emit('answer', { id, answer, cost: outputCost });
 
     if (this.cacheEngine && cache) {
       const answerCacheKey = this.cacheKey({ type: 'answer', prompt });
@@ -148,21 +176,28 @@ export abstract class LLMAgentBase {
     return answer;
   }
 
-  private async computeCosts({
-    llm,
-    prompt,
-    answer,
-  }: {
-    llm: OpenAI;
-    prompt: string;
-    answer: string;
-  }) {
+  private computePromptCosts({ prompt }: { prompt: string }): number {
     const promptTokens = prompt.length / 3;
-    const answerTokens = answer.length / 3;
+
     this.tokens.input += promptTokens;
+
+    const inputCost = MODELS_COST['gpt-4'].input * (promptTokens / 1000);
+
+    this.cost += inputCost;
+
+    return inputCost;
+  }
+
+  private computeAnswerCosts({ answer }: { answer: string }): number {
+    const answerTokens = answer.length / 3;
+
     this.tokens.output += answerTokens;
-    this.cost += MODELS_COST[llm.modelName].input * (promptTokens / 1000);
-    this.cost += MODELS_COST[llm.modelName].output * (answerTokens / 1000);
+
+    const outputCost = MODELS_COST['gpt-4'].output * (answerTokens / 1000);
+
+    this.cost += outputCost;
+
+    return outputCost;
   }
 
   protected log(...chunks: string[]) {
