@@ -1,6 +1,6 @@
 # LLM Agents
 
-A KISS framework to [create LLM Agents with Node.js](https://gen-ai.fr/large-language-model/creer-un-agent-llm-en-node-js-partie-1/)
+A library to [create LLM Agents with Node.js](https://gen-ai.fr/large-language-model/creer-un-agent-llm-en-node-js)
 
 ## Usage
 
