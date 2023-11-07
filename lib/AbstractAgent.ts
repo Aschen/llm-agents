@@ -18,7 +18,7 @@ function kebabCase(str) {
     .toLowerCase();
 }
 
-export type LLMAgentOptions = {
+export type AgentOptions = {
   actions?: LLMAction[];
   verbose?: boolean;
   cacheEngine?: CacheEngine;
@@ -35,19 +35,20 @@ const MODELS_COST = {
     input: 0.003,
     output: 0.004,
   },
+  'gpt-4-1106-preview': {
+    input: 0.01,
+    output: 0.03,
+  },
 } as const;
 
-export type LLMAgentAvailableModels = keyof typeof MODELS_COST;
+export type AgentAvailableModels = keyof typeof MODELS_COST;
 
 export type ParsedAction<TParametersNames extends string = string> = {
   name: string;
   parameters: Record<TParametersNames, string>;
 };
 
-type LLMAgentBaseListeners = {
-  /**
-   * Barfoo
-   */
+type AgentListeners = {
   prompt: ({
     id,
     prompt,
@@ -58,9 +59,6 @@ type LLMAgentBaseListeners = {
     cost: number;
   }) => void;
 
-  /**
-   * Foobar
-   */
   answer: ({
     id,
     answer,
@@ -72,7 +70,7 @@ type LLMAgentBaseListeners = {
   }) => void;
 };
 
-export abstract class LLMAgentBase extends EventEmitter<LLMAgentBaseListeners> {
+export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
   public step = 0;
   public actionsCount = 0;
   public actionsErrorCount = 0;
@@ -113,7 +111,7 @@ export abstract class LLMAgentBase extends EventEmitter<LLMAgentBaseListeners> {
     cacheEngine = null,
     localDebug = LOCAL_DEBUG,
     tries = 1,
-  }: LLMAgentOptions = {}) {
+  }: AgentOptions = {}) {
     super();
 
     this.actions = [...actions, new DoneAction()];
@@ -135,7 +133,7 @@ export abstract class LLMAgentBase extends EventEmitter<LLMAgentBaseListeners> {
     temperature = 0.0,
     cache = true,
   }: {
-    model: LLMAgentAvailableModels;
+    model: AgentAvailableModels;
     prompt: string;
     temperature?: number;
     cache?: boolean;
@@ -253,7 +251,7 @@ export abstract class LLMAgentBase extends EventEmitter<LLMAgentBaseListeners> {
   }
 
   /**
-   * todo: handle when there is no leading "/"
+   * todo: handle when there is no trailing "/"
    */
   protected extractActions({ answer }: { answer: string }): ParsedAction[] {
     const actions: ParsedAction[] = [];
@@ -403,5 +401,16 @@ export abstract class LLMAgentBase extends EventEmitter<LLMAgentBaseListeners> {
     }
 
     return describedSteps;
+  }
+
+  /**
+   * Use this in your prompt to improve it's performances
+   *
+   * @see https://arxiv.org/pdf/2307.11760.pdf
+   *
+   * @returns "The task I'm asking you is vital to my career, and I greatly value your thorough analysis."
+   */
+  get promptEnhancers() {
+    return "The task I'm asking you is vital to my career, and I greatly value your thorough analysis.";
   }
 }

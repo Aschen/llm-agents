@@ -1,15 +1,33 @@
 import { PromptTemplate } from 'langchain/prompts';
 
-import { LLMAgentOneShot } from '../../LLMAgentOneShot';
-import { describeMultilineAction } from '../../actions/LLMAction';
+import { AgentOneShot } from '../../AgentOneShot';
 import { FileCache } from '../../cache/FileCache';
+import { OneShotAction } from '../../actions/LLMAction';
 
 export type CriteriaDefinition = {
   name: string;
   parameters: { definition: string };
 };
 
-export class BranchAgent extends LLMAgentOneShot<'criteria' | 'definition'> {
+class CriteriaAction extends OneShotAction {
+  public name = 'criteria';
+
+  public usage =
+    'describe one of the criteria to evaluate the answer. you can use this action multiple times to describe multiple criteria';
+
+  public parameters = [
+    {
+      name: 'criteria',
+      usage: 'Name of the criteria',
+    },
+    {
+      name: 'definition',
+      usage: 'Definition of the criteria',
+    },
+  ];
+}
+
+export class BranchAgent extends AgentOneShot {
   protected template = new PromptTemplate({
     template: `You are an expert in question and answer analysis. 
 You have a lot of experience in every field.
@@ -17,21 +35,23 @@ You have a lot of experience in every field.
 You will be given a question and you need to take an analytical approach to determine {criteriaCount} criteria 
 in order to verify quality of potential answers.
 
-{existingCriteriaInstructions}{criterias}
+{existingCriteriaInstructions}
 
 The question is the following:
 # BEGIN QUESTION
 {question}
 # END QUESTION
 
-Answer as following:
-{format}
+Answer with the following actions:
+{actions}
+
+{existingCriteriaInstructionsEmphasis}
 `,
     inputVariables: [
       'question',
-      'format',
+      'actions',
       'criteriaCount',
-      'criterias',
+      'existingCriteriaInstructionsEmphasis',
       'existingCriteriaInstructions',
     ],
   });
@@ -49,7 +69,7 @@ Answer as following:
     criteriaCount?: number;
     criterias?: string[];
   }) {
-    super({ cacheEngine: new FileCache() });
+    super({ actions: [new CriteriaAction()], cacheEngine: new FileCache() });
 
     this.question = question;
     this.criteriaCount = criteriaCount;
@@ -65,33 +85,25 @@ Answer as following:
   }): Promise<string> {
     return this.template.format({
       question: this.question,
-      criteriaCount: this.criterias
-        ? this.criterias.length
-        : this.criteriaCount,
+
+      criteriaCount:
+        this.criterias && this.criterias?.length
+          ? this.criterias.length
+          : this.criteriaCount,
 
       existingCriteriaInstructions: this.criterias
-        ? 'Create a detailled description of those criteria regarding the question to evaluate: '
+        ? `Create a detailled description of those criteria regarding the question to evaluate: ${this.criterias.join(
+            ', '
+          )}`
         : '',
 
-      criterias: this.criterias
-        ? Array.from(this.criterias.keys()).join(',')
+      existingCriteriaInstructionsEmphasis: this.criterias
+        ? `ONLY ANSWER DESCRIPTION FOR THE ${
+            this.criterias.length
+          } CRITERIAS I GAVE TO YOU: ${this.criterias.join(', ')}`
         : '',
 
-      format: describeMultilineAction({
-        name: 'criteria',
-        usage:
-          'describe one of the criteria to evaluate the answer. you can use this action multiple times to describe multiple criteria',
-        parameters: [
-          {
-            name: 'criteria',
-            usage: 'Name of the criteria',
-          },
-          {
-            name: 'definition',
-            usage: 'Definition of the criteria',
-          },
-        ],
-      }),
+      actions,
     });
   }
 }

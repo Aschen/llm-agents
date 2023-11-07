@@ -1,8 +1,8 @@
 import { PromptTemplate } from 'langchain/prompts';
 
-import { LLMAgentOptions, LLMAgentBase, ParsedAction } from './LLMAgentBase';
+import { AgentOptions, AbstractAgent, ParsedAction } from './AbstractAgent';
 
-export abstract class LLMAgent extends LLMAgentBase {
+export abstract class AgentLooper extends AbstractAgent {
   protected abstract template: PromptTemplate;
 
   protected abstract formatPrompt({
@@ -13,7 +13,7 @@ export abstract class LLMAgent extends LLMAgentBase {
     feedbackSteps?: string[];
   }): Promise<string>;
 
-  constructor(options: LLMAgentOptions = {}) {
+  constructor(options: AgentOptions = {}) {
     super(options);
   }
 

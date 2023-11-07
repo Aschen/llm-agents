@@ -1,11 +1,40 @@
 import { PromptTemplate } from 'langchain/prompts';
 
-import { LLMAgentOneShot } from '../../LLMAgentOneShot';
-import { describeMultilineAction } from '../../actions/LLMAction';
+import { AgentOneShot } from '../../AgentOneShot';
+import { OneShotAction } from '../../actions/LLMAction';
 import { FileCache } from '../../cache/FileCache';
-import { AnswersAnalyses } from './BSM';
+import { AnswersAnalyses } from './BSMExecutor';
 
-export class MergeAgent extends LLMAgentOneShot<'bestAnswer' | 'mergedAnswer'> {
+class MergedAnswerAction extends OneShotAction {
+  public name = 'mergedAnswer';
+
+  public usage =
+    'use the analyses and the answer content to create a new answer to the question';
+
+  public parameters = [
+    {
+      name: 'answer',
+      usage: 'content of the answer',
+    },
+  ];
+}
+
+class BestAnswerAction extends OneShotAction {
+  public name = 'bestAnswer';
+
+  public format = 'multiline' as const;
+
+  public usage = 'best answer number based on the analysis';
+
+  public parameters = [
+    {
+      name: 'index',
+      usage: 'number of the answer',
+    },
+  ];
+}
+
+export class MergeAgent extends AgentOneShot {
   protected template = new PromptTemplate({
     template: `You are an expert in question and answer analysis. 
 You have a lot of experience in every field.
@@ -22,10 +51,10 @@ You need to merge their analysis into a single analysis.
 {analyses}
 # END ANALYSIS
 
-Answer as following:
-{format}
+Answer with the following actions:
+{actions}
 `,
-    inputVariables: ['question', 'analyses', 'format'],
+    inputVariables: ['question', 'analyses', 'actions'],
   });
 
   private question: string;
@@ -38,7 +67,10 @@ Answer as following:
     question: string;
     answersAnalyses: AnswersAnalyses;
   }) {
-    super({ cacheEngine: new FileCache() });
+    super({
+      actions: [new BestAnswerAction(), new MergedAnswerAction()],
+      cacheEngine: new FileCache(),
+    });
 
     this.question = question;
     this.answersAnalyses = answersAnalyses;
@@ -71,29 +103,7 @@ Answer as following:
     return this.template.format({
       question: this.question,
       analyses: this.describeAnalysis(),
-      format:
-        describeMultilineAction({
-          name: 'bestAnswer',
-          usage: 'best answer number based on the analysis',
-          parameters: [
-            {
-              name: 'index',
-              usage: 'number of the answer',
-            },
-          ],
-        }) +
-        '\n\n' +
-        describeMultilineAction({
-          name: 'mergedAnswer',
-          usage:
-            'use the analyses and the answer content to create a new answer to the question',
-          parameters: [
-            {
-              name: 'answer',
-              usage: 'content of the answer',
-            },
-          ],
-        }),
+      actions,
     });
   }
 }

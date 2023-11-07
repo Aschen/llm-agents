@@ -1,15 +1,13 @@
 import { PromptTemplate } from 'langchain/prompts';
 
 import {
-  LLMAgentOptions,
-  LLMAgentBase,
-  LLMAgentAvailableModels,
+  AgentOptions,
+  AbstractAgent,
+  AgentAvailableModels,
   ParsedAction,
-} from './LLMAgentBase';
+} from './AbstractAgent';
 
-export abstract class LLMAgentOneShot<
-  TParametersNames extends string
-> extends LLMAgentBase {
+export abstract class AgentOneShot extends AbstractAgent {
   protected abstract template: PromptTemplate;
 
   protected abstract formatPrompt({
@@ -20,7 +18,7 @@ export abstract class LLMAgentOneShot<
     feedbackSteps?: string[];
   }): Promise<string>;
 
-  constructor(options: LLMAgentOptions = {}) {
+  constructor(options: AgentOptions = {}) {
     super(options);
   }
 
@@ -28,9 +26,9 @@ export abstract class LLMAgentOneShot<
     modelName = 'gpt-4',
     temperature = 0.0,
   }: {
-    modelName?: LLMAgentAvailableModels;
+    modelName?: AgentAvailableModels;
     temperature?: number;
-  } = {}): Promise<ParsedAction<TParametersNames>[]> {
+  } = {}): Promise<ParsedAction[]> {
     try {
       const prompt = await this.formatPrompt({
         actions: this.describeActions(),

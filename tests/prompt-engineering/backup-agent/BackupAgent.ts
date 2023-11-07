@@ -1,12 +1,11 @@
-import { PromptTemplate } from "langchain/prompts";
+import { PromptTemplate } from 'langchain/prompts';
 
-import { LLMAgent } from "../../../lib/LLMAgent";
-import { FileCache } from "../../../lib/cache/FileCache";
-import { ListFilesAction } from "../../lib/actions/ListFilesAction";
-import { CopyFileAction } from "../../lib/actions/CopyFileAction";
-import { CreateDirectoryAction } from "../../lib/actions/CreateDirectoryAction";
+import { FileCache, AgentLooper } from '../../../index';
+import { ListFilesAction } from '../../lib/actions/ListFilesAction';
+import { CopyFileAction } from '../../lib/actions/CopyFileAction';
+import { CreateDirectoryAction } from '../../lib/actions/CreateDirectoryAction';
 
-export class BackupAgent extends LLMAgent {
+export class BackupAgent extends AgentLooper {
   private source: string;
   private destination: string;
 
@@ -34,7 +33,7 @@ Skip node_modules directories.
 Start by a sentence summarizing the current state of your task according to the last action result.
 Then, answer with the actions you want to execute.
 `,
-    inputVariables: ["source", "destination", "actions", "feedback"],
+    inputVariables: ['source', 'destination', 'actions', 'feedback'],
   });
 
   constructor({
@@ -68,7 +67,7 @@ Then, answer with the actions you want to execute.
       source: this.source,
       destination: this.destination,
       actions,
-      feedback: feedbackSteps.join("\n\n"),
+      feedback: feedbackSteps.join('\n\n'),
     });
   }
 }

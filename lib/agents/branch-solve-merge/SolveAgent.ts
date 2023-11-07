@@ -1,9 +1,27 @@
 import { PromptTemplate } from 'langchain/prompts';
-import { LLMAgentOneShot } from '../../LLMAgentOneShot';
-import { describeMultilineAction } from '../../actions/LLMAction';
+
+import { AgentOneShot } from '../../AgentOneShot';
+import { OneShotAction } from '../../actions/LLMAction';
 import { FileCache } from '../../cache/FileCache';
 
-export class SolveAgent extends LLMAgentOneShot<'analysis' | 'note'> {
+class AnalysisAction extends OneShotAction {
+  public name = 'analysis';
+
+  public usage = 'analysis of the answer to the question based on the criteria';
+
+  public parameters = [
+    {
+      name: 'analysis',
+      usage: 'content of the analysis',
+    },
+    {
+      name: 'note',
+      usage: 'note on 10 of the answer based on the criteria',
+    },
+  ];
+}
+
+export class SolveAgent extends AgentOneShot {
   protected template = new PromptTemplate({
     template: `You are an expert in question and answer analysis. 
 You have a lot of experience in every field.
@@ -29,10 +47,10 @@ The answer is:
 Write an extensive analysis on the answer to the question based on the criteria.
 Also give a note on 10 to the answer based on the criteria.
 
-Answer as following:
-{format}
+Answer with the following actions:
+{actions}
 `,
-    inputVariables: ['question', 'criteria', 'answer', 'format'],
+    inputVariables: ['question', 'criteria', 'answer', 'actions'],
   });
 
   private question: string;
@@ -48,7 +66,7 @@ Answer as following:
     criteria: string;
     answer: string;
   }) {
-    super({ cacheEngine: new FileCache() });
+    super({ actions: [new AnalysisAction()], cacheEngine: new FileCache() });
 
     this.question = question;
     this.criteria = criteria;
@@ -66,20 +84,7 @@ Answer as following:
       question: this.question,
       criteria: this.criteria,
       answer: this.answer,
-      format: describeMultilineAction({
-        name: 'analysis',
-        usage: 'analysis of the answer to the question based on the criteria',
-        parameters: [
-          {
-            name: 'analysis',
-            usage: 'content of the analysis',
-          },
-          {
-            name: 'note',
-            usage: 'note on 10 of the answer based on the criteria',
-          },
-        ],
-      }),
+      actions,
     });
   }
 }
