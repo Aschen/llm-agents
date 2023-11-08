@@ -1,27 +1,21 @@
 import { PromptTemplate } from 'langchain/prompts';
 
 import { AgentOneShot } from '../../AgentOneShot';
-import { OneShotAction } from '../../actions/LLMAction';
+import { Instruction } from '../../instructions/Instruction';
 import { FileCache } from '../../cache/FileCache';
 
-class AnalysisAction extends OneShotAction {
+class AnalysisInstruction extends Instruction {
   public name = 'analysis';
 
   public usage = 'analysis of the answer to the question based on the criteria';
 
-  public parameters = [
-    {
-      name: 'analysis',
-      usage: 'content of the analysis',
-    },
-    {
-      name: 'note',
-      usage: 'note on 10 of the answer based on the criteria',
-    },
-  ];
+  public parameters = {
+    analysis: 'content of the analysis',
+    note: 'note on 10 of the answer based on the criteria',
+  };
 }
 
-export class SolveAgent extends AgentOneShot {
+export class SolveAgent extends AgentOneShot<AnalysisInstruction> {
   protected template = new PromptTemplate({
     template: `You are an expert in question and answer analysis. 
 You have a lot of experience in every field.
@@ -48,9 +42,14 @@ Write an extensive analysis on the answer to the question based on the criteria.
 Also give a note on 10 to the answer based on the criteria.
 
 Answer with the following actions:
-{actions}
+{instructionsDescription}
 `,
-    inputVariables: ['question', 'criteria', 'answer', 'actions'],
+    inputVariables: [
+      'question',
+      'criteria',
+      'answer',
+      'instructionsDescription',
+    ],
   });
 
   private question: string;
@@ -66,7 +65,10 @@ Answer with the following actions:
     criteria: string;
     answer: string;
   }) {
-    super({ actions: [new AnalysisAction()], cacheEngine: new FileCache() });
+    super({
+      instructions: [new AnalysisInstruction()],
+      cacheEngine: new FileCache(),
+    });
 
     this.question = question;
     this.criteria = criteria;
@@ -74,17 +76,17 @@ Answer with the following actions:
   }
 
   protected formatPrompt({
-    actions,
+    instructionsDescription,
     feedbackSteps,
   }: {
-    actions: string;
+    instructionsDescription: string;
     feedbackSteps?: string[] | undefined;
   }): Promise<string> {
     return this.template.format({
       question: this.question,
       criteria: this.criteria,
       answer: this.answer,
-      actions,
+      instructionsDescription,
     });
   }
 }

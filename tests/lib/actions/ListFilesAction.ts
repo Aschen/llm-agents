@@ -1,25 +1,20 @@
-import { execSync } from "child_process";
+import { execSync } from 'child_process';
 
 import {
-  LLMAction,
+  Action,
   ActionFeedback,
-  LLMActionOptions,
-} from "../../../lib/actions/LLMAction";
+  ActionOptions,
+  InstructionOptions,
+} from '../../../index';
 
-type ListFilesActionParametersNames = "directory";
+type ListFilesActionParametersNames = 'directory';
 
-export class ListFilesAction extends LLMAction<ListFilesActionParametersNames> {
-  public name = "listFiles";
-  public usage = "list all files in a directory";
-  public parameters = [
-    {
-      name: "directory" as const,
-      usage: "path of the directory to list",
-    },
-  ];
-  constructor({ format }: { format?: LLMActionOptions["format"] } = {}) {
-    super({ format });
-  }
+export class ListFilesAction extends Action<ListFilesActionParametersNames> {
+  public name = 'listFiles';
+  public usage = 'list all files in a directory';
+  public parameters = {
+    directory: 'path of the directory to list',
+  };
 
   protected async executeAction(
     parameters: Record<ListFilesActionParametersNames, string>
@@ -32,12 +27,12 @@ export class ListFilesAction extends LLMAction<ListFilesActionParametersNames> {
 
       return {
         message: `Files in ${directory}:\n${result.toString()}`,
-        type: "success",
+        type: 'success',
       };
     } catch (error) {
       return {
         message: error.message as string,
-        type: "error",
+        type: 'error',
       };
     }
   }

@@ -4,10 +4,11 @@ import { OpenAI } from 'langchain/llms/openai';
 import { PromptTemplate } from 'langchain/prompts';
 
 import { CacheEngine } from './cache/CacheEngine';
-import { LLMAction, ActionFeedback } from './actions/LLMAction';
-import { DoneAction } from './actions/DoneAction';
+import { LLMAnswer } from './instructions/LLMAnswer';
+import { Instruction } from './instructions/Instruction';
 import { EventEmitter } from './EventEmitter';
 import { uuidv4 } from './helpers/uuid';
+import { Action, ActionFeedback } from './instructions/Action';
 
 const LOCAL_DEBUG = process.env.NODE_ENV !== 'production';
 
@@ -19,7 +20,7 @@ function kebabCase(str) {
 }
 
 export type AgentOptions = {
-  actions?: LLMAction[];
+  instructions?: Instruction[];
   verbose?: boolean;
   cacheEngine?: CacheEngine;
   localDebug?: boolean;
@@ -42,11 +43,6 @@ const MODELS_COST = {
 } as const;
 
 export type AgentAvailableModels = keyof typeof MODELS_COST;
-
-export type ParsedAction<TParametersNames extends string = string> = {
-  name: string;
-  parameters: Record<TParametersNames, string>;
-};
 
 type AgentListeners = {
   prompt: ({
@@ -80,7 +76,7 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
   protected promptStep = -1;
   protected tries: number;
 
-  protected actions: LLMAction[];
+  protected instructions: Instruction[];
 
   protected verbose: boolean;
   protected cacheEngine: CacheEngine | null;
@@ -96,17 +92,17 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
   protected abstract template: PromptTemplate;
 
   protected abstract formatPrompt({
-    actions,
+    instructionsDescription,
     feedbackSteps = [],
   }: {
-    actions: string;
+    instructionsDescription: string;
     feedbackSteps?: string[];
   }): Promise<string>;
 
   protected abstract run(...args: unknown[]): Promise<unknown>;
 
   constructor({
-    actions = [],
+    instructions = [],
     verbose = true,
     cacheEngine = null,
     localDebug = LOCAL_DEBUG,
@@ -114,7 +110,7 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
   }: AgentOptions = {}) {
     super();
 
-    this.actions = [...actions, new DoneAction()];
+    this.instructions = instructions;
     this.verbose = verbose;
     this.cacheEngine = cacheEngine;
     this.localDebug = localDebug;
@@ -165,12 +161,12 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
     }
 
     const id = uuidv4();
-    const inputCost = this.computePromptCosts({ prompt });
+    const inputCost = this.computePromptCosts({ prompt, model });
     this.emit('prompt', { id, prompt, cost: inputCost });
 
     const answer = await llm.call(prompt);
 
-    const outputCost = this.computeAnswerCosts({ answer });
+    const outputCost = this.computeAnswerCosts({ answer, model });
     this.emit('answer', { id, answer, cost: outputCost });
 
     if (this.cacheEngine && cache) {
@@ -182,24 +178,36 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
     return answer;
   }
 
-  private computePromptCosts({ prompt }: { prompt: string }): number {
+  private computePromptCosts({
+    prompt,
+    model,
+  }: {
+    prompt: string;
+    model: AgentAvailableModels;
+  }): number {
     const promptTokens = prompt.length / 3;
 
     this.tokens.input += promptTokens;
 
-    const inputCost = MODELS_COST['gpt-4'].input * (promptTokens / 1000);
+    const inputCost = MODELS_COST[model].input * (promptTokens / 1000);
 
     this.cost += inputCost;
 
     return inputCost;
   }
 
-  private computeAnswerCosts({ answer }: { answer: string }): number {
+  private computeAnswerCosts({
+    answer,
+    model,
+  }: {
+    answer: string;
+    model: AgentAvailableModels;
+  }): number {
     const answerTokens = answer.length / 3;
 
     this.tokens.output += answerTokens;
 
-    const outputCost = MODELS_COST['gpt-4'].output * (answerTokens / 1000);
+    const outputCost = MODELS_COST[model].output * (answerTokens / 1000);
 
     this.cost += outputCost;
 
@@ -253,12 +261,13 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
   /**
    * todo: handle when there is no trailing "/"
    */
-  protected extractActions({ answer }: { answer: string }): ParsedAction[] {
-    const actions: ParsedAction[] = [];
+  protected extractInstructions({ answer }: { answer: string }): LLMAnswer[] {
+    const answers: LLMAnswer[] = [];
+
     const lines = answer.split(/\r?\n/);
     let insideActionBlock = false;
     let insideParameterBlock = false;
-    let currentAction: ParsedAction | null = null;
+    let currentAnswer: LLMAnswer | null = null;
     let currentParameterName: string | null = null;
     let currentParameterValue: string | null = null;
 
@@ -267,11 +276,11 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
 
       if (trimmedLine.startsWith('<Action')) {
         insideActionBlock = true;
-        currentAction = { name: '', parameters: {} };
+        currentAnswer = { name: '', parameters: {} };
 
         const nameMatch = trimmedLine.match(/name="([^"]+)"/);
         if (nameMatch) {
-          currentAction.name = nameMatch[1];
+          currentAnswer.name = nameMatch[1];
         }
 
         const inlineParameters = trimmedLine.match(
@@ -282,7 +291,7 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
             const [key, value] = inlineParameter
               .replace('parameter:', '')
               .split('=');
-            currentAction.parameters[key.replace(/"/g, '')] = value.replace(
+            currentAnswer.parameters[key.replace(/"/g, '')] = value.replace(
               /"/g,
               ''
             );
@@ -291,17 +300,17 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
 
         if (trimmedLine.endsWith('/>')) {
           insideActionBlock = false;
-          if (currentAction.name) {
-            actions.push(currentAction);
+          if (currentAnswer.name) {
+            answers.push(currentAnswer);
           }
-          currentAction = null;
+          currentAnswer = null;
         }
       } else if (trimmedLine.startsWith('</Action>')) {
         insideActionBlock = false;
-        if (currentAction && currentAction.name) {
-          actions.push(currentAction);
+        if (currentAnswer && currentAnswer.name) {
+          answers.push(currentAnswer);
         }
-        currentAction = null;
+        currentAnswer = null;
       } else if (insideActionBlock && trimmedLine.startsWith('<Parameter')) {
         insideParameterBlock = true;
         currentParameterValue = '';
@@ -314,7 +323,7 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
         );
         if (parameterMatch) {
           const [, paramName, paramValue] = parameterMatch;
-          currentAction.parameters[paramName] = paramValue;
+          currentAnswer.parameters[paramName] = paramValue;
         }
       } else if (
         insideActionBlock &&
@@ -323,11 +332,11 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
       ) {
         insideParameterBlock = false;
         if (
-          currentAction &&
+          currentAnswer &&
           currentParameterName &&
           currentParameterValue !== null
         ) {
-          currentAction.parameters[currentParameterName] =
+          currentAnswer.parameters[currentParameterName] =
             currentParameterValue.trim();
         }
         currentParameterName = null;
@@ -339,52 +348,73 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
       }
     }
 
-    if (actions.length === 0) {
-      throw new Error('Incorrect answer format. Cannot parse actions.');
+    if (answers.length === 0) {
+      throw new Error('Incorrect answer format. Cannot parse answers.');
     }
 
-    return actions;
+    for (const answer of answers) {
+      if (
+        !this.instructions.find(
+          (instruction) => instruction.name === answer.name
+        )
+      ) {
+        throw new Error(`Hallucinated instruction "${answer.name}"`);
+      }
+    }
+
+    return answers;
   }
 
   protected async executeAction({
-    name,
-    parameters,
+    answer,
   }: {
-    name: string;
-    parameters: Record<string, string>;
+    answer: LLMAnswer;
   }): Promise<ActionFeedback> {
-    const action = this.actions.find((action) => action.name === name);
+    const action = this.findAction({ answer });
 
     if (!action) {
       return {
-        message: `Action "${name}" not found`,
+        message: `Action "${answer.name}" not found`,
         type: 'error',
       };
     }
 
-    return action.execute(parameters);
+    return action.execute(answer.parameters);
   }
 
   protected describeFeedback({
-    actionName,
-    parameters,
+    answer,
     feedback,
   }: {
-    actionName: string;
-    parameters: Record<string, string>;
+    answer: LLMAnswer;
     feedback: ActionFeedback;
   }): string {
-    const action = this.actions.find((action) => action.name === actionName);
+    const action = this.findAction({ answer });
 
     if (!action) {
-      return `Action "${actionName}" does not exist.`;
+      return `Action "${answer.name}" not found`;
     }
 
-    return action.describeFeedback({ feedback, parameters });
+    return action.describeFeedback({ feedback, parameters: answer.parameters });
   }
 
-  protected describeActions(): string {
-    return this.actions.map((action) => action.describe).join('\n');
+  protected findAction({ answer }: { answer: LLMAnswer }): Action | null {
+    const action = this.instructions.find(
+      (instruction) =>
+        instruction.name === answer.name && instruction instanceof Action
+    );
+
+    if (!(action instanceof Action)) {
+      return null;
+    }
+
+    return action;
+  }
+
+  protected describeInstructions(): string {
+    return this.instructions
+      .map((instruction) => instruction.describe)
+      .join('\n');
   }
 
   protected describeFeedbackSteps({

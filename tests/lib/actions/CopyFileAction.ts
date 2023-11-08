@@ -1,22 +1,16 @@
-import { execSync } from "child_process";
+import { execSync } from 'child_process';
 
-import { LLMAction, ActionFeedback } from "../../../lib/actions/LLMAction";
+import { Action, ActionFeedback } from '../../../index';
 
-type CopyFileActionParametersNames = "source" | "destination";
+type CopyFileActionParametersNames = 'source' | 'destination';
 
-export class CopyFileAction extends LLMAction<CopyFileActionParametersNames> {
-  public name = "copyFile";
-  public usage = "copy a file from one place to another";
-  public parameters = [
-    {
-      name: "source" as const,
-      usage: "path of the file to copy",
-    },
-    {
-      name: "destination" as const,
-      usage: "path of the destination file",
-    },
-  ];
+export class CopyFileAction extends Action<CopyFileActionParametersNames> {
+  public name = 'copyFile';
+  public usage = 'copy a file from one place to another';
+  public parameters = {
+    source: 'path of the file to copy',
+    destination: 'path of the destination file',
+  };
 
   protected async executeAction(
     parameters: Record<CopyFileActionParametersNames, string>
@@ -29,12 +23,12 @@ export class CopyFileAction extends LLMAction<CopyFileActionParametersNames> {
 
       return {
         message: `File copied from ${source} to ${destination}`,
-        type: "success",
+        type: 'success',
       };
     } catch (error) {
       return {
         message: error.message as string,
-        type: "error",
+        type: 'error',
       };
     }
   }

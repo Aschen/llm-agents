@@ -33,10 +33,10 @@ Here is the question:
   }
 
   protected async formatPrompt({
-    actions,
+    instructionsDescription,
     feedbackSteps,
   }: {
-    actions: string;
+    instructionsDescription: string;
     feedbackSteps: string[];
   }) {
     return this.template.format({ question: this.question });

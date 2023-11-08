@@ -4,19 +4,13 @@ import {
   AgentOptions,
   AbstractAgent,
   AgentAvailableModels,
-  ParsedAction,
 } from './AbstractAgent';
+import { LLMAnswer } from './instructions/LLMAnswer';
 
-export abstract class AgentOneShot extends AbstractAgent {
+export abstract class AgentOneShot<
+  TLLMAnswer extends LLMAnswer
+> extends AbstractAgent {
   protected abstract template: PromptTemplate;
-
-  protected abstract formatPrompt({
-    actions,
-    feedbackSteps = [],
-  }: {
-    actions: string;
-    feedbackSteps?: string[];
-  }): Promise<string>;
 
   constructor(options: AgentOptions = {}) {
     super(options);
@@ -28,10 +22,10 @@ export abstract class AgentOneShot extends AbstractAgent {
   }: {
     modelName?: AgentAvailableModels;
     temperature?: number;
-  } = {}): Promise<ParsedAction[]> {
+  } = {}): Promise<TLLMAnswer[]> {
     try {
       const prompt = await this.formatPrompt({
-        actions: this.describeActions(),
+        instructionsDescription: this.describeInstructions(),
       });
 
       const answer = await this.callModel({
@@ -40,25 +34,39 @@ export abstract class AgentOneShot extends AbstractAgent {
         temperature,
       });
 
-      const actions = this.extractActions({ answer });
+      let answers: LLMAnswer[];
 
-      // If user registered actions, execute them
-      if (
-        this.actions.length > 1 ||
-        (this.actions.length === 0 && this.actions[0].name !== 'done')
-      ) {
-        for (const action of actions) {
-          const feedback = await this.executeAction(action);
-
-          if (feedback.type === 'error') {
-            this.actionsErrorCount++;
-          } else {
-            this.actionsCount++;
+      while (!answers) {
+        try {
+          answers = this.extractInstructions({ answer });
+        } catch (error) {
+          if (this.tries === 0) {
+            throw error;
           }
+
+          this.tries--;
+          continue;
         }
       }
 
-      return actions;
+      // If user registered actions, execute them
+      for (const answer of answers) {
+        const action = this.findAction({ answer });
+
+        if (!action) {
+          continue;
+        }
+
+        const feedback = await this.executeAction({ answer });
+
+        if (feedback.type === 'error') {
+          this.actionsErrorCount++;
+        } else {
+          this.actionsCount++;
+        }
+      }
+
+      return answers as TLLMAnswer[];
     } catch (error) {
       if (this.tries === 0) {
         throw error;

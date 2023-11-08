@@ -1,6 +1,10 @@
 import { AnswerAgent } from './AnswerAgent';
 import { BranchAgent } from './BranchAgent';
-import { MergeAgent } from './MergeAgent';
+import {
+  BestAnswerInstruction,
+  MergeAgent,
+  MergedAnswerInstruction,
+} from './MergeAgent';
 import { SolveAgent } from './SolveAgent';
 
 export type Analysis = {
@@ -205,10 +209,12 @@ export class BSMExecutor {
 
     const results = await mergeAgent.run();
 
-    const bestAnswer = results.find((result) => result.name === 'bestAnswer');
+    const bestAnswer = results.find(
+      (result) => result.name === 'bestAnswer'
+    ) as BestAnswerInstruction;
     const mergedAnswer = results.find(
       (result) => result.name === 'mergedAnswer'
-    );
+    ) as MergedAnswerInstruction;
 
     if (!bestAnswer || !mergedAnswer) {
       throw new Error('Merge: could not find best answer or merged answer');

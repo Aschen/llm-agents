@@ -1,18 +1,15 @@
-import { execSync } from "child_process";
+import { execSync } from 'child_process';
 
-import { LLMAction, ActionFeedback } from "../../../lib/actions/LLMAction";
+import { Action, ActionFeedback } from '../../../index';
 
-type CreateDirectoryActionParametersNames = "path";
+type CreateDirectoryActionParametersNames = 'path';
 
-export class CreateDirectoryAction extends LLMAction<CreateDirectoryActionParametersNames> {
-  public name = "createDirectory";
-  public usage = "create a directory";
-  public parameters = [
-    {
-      name: "path" as const,
-      usage: "path of the directory to create",
-    },
-  ];
+export class CreateDirectoryAction extends Action<CreateDirectoryActionParametersNames> {
+  public name = 'createDirectory';
+  public usage = 'create a directory';
+  public parameters = {
+    path: 'path of the directory to create',
+  };
 
   protected async executeAction(
     parameters: Record<CreateDirectoryActionParametersNames, string>
@@ -25,12 +22,12 @@ export class CreateDirectoryAction extends LLMAction<CreateDirectoryActionParame
 
       return {
         message: `Created directory ${path}`,
-        type: "success",
+        type: 'success',
       };
     } catch (error) {
       return {
         message: error.message as string,
-        type: "error",
+        type: 'error',
       };
     }
   }

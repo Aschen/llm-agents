@@ -1,20 +1,33 @@
 import { PromptTemplate } from 'langchain/prompts';
 
-import { AgentOptions, AbstractAgent, ParsedAction } from './AbstractAgent';
+import { AgentOptions, AbstractAgent } from './AbstractAgent';
+import { LLMAnswer } from './instructions/LLMAnswer';
+import { Action } from './instructions/Action';
+import { ActionDone } from './instructions/ActionDone';
 
 export abstract class AgentLooper extends AbstractAgent {
   protected abstract template: PromptTemplate;
 
   protected abstract formatPrompt({
-    actions,
+    instructionsDescription,
     feedbackSteps = [],
   }: {
-    actions: string;
+    instructionsDescription: string;
     feedbackSteps?: string[];
   }): Promise<string>;
 
   constructor(options: AgentOptions = {}) {
     super(options);
+
+    this.instructions.push(new ActionDone());
+
+    for (const instruction of this.instructions) {
+      if (!(instruction instanceof Action)) {
+        throw new Error(
+          `AgentLooper only accepts Actions instructions (${instruction.name} is not an Action)`
+        );
+      }
+    }
   }
 
   async run() {
@@ -25,19 +38,19 @@ export abstract class AgentLooper extends AbstractAgent {
       this.log(`Step ${this.step}`);
 
       const prompt = await this.formatPrompt({
-        actions: this.describeActions(),
+        instructionsDescription: this.describeInstructions(),
         feedbackSteps: this.describeFeedbackSteps({ feedbackSteps }),
       });
 
       const answer = await this.callModel({
-        model: 'gpt-4',
+        model: 'gpt-4-1106-preview',
         prompt,
       });
 
-      let actions: ParsedAction[];
+      let answers: LLMAnswer[];
 
       try {
-        actions = this.extractActions({ answer });
+        answers = this.extractInstructions({ answer });
       } catch (error) {
         if (this.tries === 0) {
           throw error;
@@ -49,14 +62,14 @@ export abstract class AgentLooper extends AbstractAgent {
 
       feedbackSteps[this.step] = [];
       let error = false;
-      for (const action of actions) {
-        const feedback = await this.executeAction(action);
+      // AgentLooper only have Action as instruction so we can execute them
+      for (const answer of answers) {
+        const feedback = await this.executeAction({ answer });
 
         feedbackSteps[this.step].push(
           this.describeFeedback({
-            actionName: action.name,
+            answer,
             feedback,
-            parameters: action.parameters,
           })
         );
 
@@ -67,7 +80,8 @@ export abstract class AgentLooper extends AbstractAgent {
           this.actionsCount++;
         }
 
-        if (action.name === 'done') {
+        if (answer.name === 'done') {
+          console.log('DONE');
           done = true;
         }
       }

@@ -18,7 +18,7 @@ You can only move one file after another.
 
 You can use the following actions:
 # BEGIN ACTIONS DEFINITION
-{actions}
+{instructionsDescription}
 # END ACTIONS DEFINITION
 
 The last action result was:
@@ -33,7 +33,12 @@ Skip node_modules directories.
 Start by a sentence summarizing the current state of your task according to the last action result.
 Then, answer with the actions you want to execute.
 `,
-    inputVariables: ['source', 'destination', 'actions', 'feedback'],
+    inputVariables: [
+      'source',
+      'destination',
+      'instructionsDescription',
+      'feedback',
+    ],
   });
 
   constructor({
@@ -44,7 +49,7 @@ Then, answer with the actions you want to execute.
     destination: string;
   }) {
     super({
-      actions: [
+      instructions: [
         new ListFilesAction(),
         new CopyFileAction(),
         new CreateDirectoryAction(),
@@ -57,16 +62,16 @@ Then, answer with the actions you want to execute.
   }
 
   protected async formatPrompt({
-    actions,
+    instructionsDescription,
     feedbackSteps,
   }: {
-    actions: string;
+    instructionsDescription: string;
     feedbackSteps: string[];
   }) {
     return this.template.format({
       source: this.source,
       destination: this.destination,
-      actions,
+      instructionsDescription,
       feedback: feedbackSteps.join('\n\n'),
     });
   }

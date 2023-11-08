@@ -1,18 +1,15 @@
-import { execSync } from "child_process";
+import { execSync } from 'child_process';
 
-import { LLMAction, ActionFeedback } from "../../../lib/actions/LLMAction";
+import { Action, ActionFeedback } from '../../../index';
 
-type ExecuteShellCommandActionParametersNames = "command";
+type ExecuteShellCommandActionParametersNames = 'command';
 
-export class ExecuteShellCommandAction extends LLMAction<ExecuteShellCommandActionParametersNames> {
-  public name = "executeShellCommand";
-  public usage = "execute a shell command";
-  public parameters = [
-    {
-      name: "command" as const,
-      usage: "command to execute",
-    },
-  ];
+export class ExecuteShellCommandAction extends Action<ExecuteShellCommandActionParametersNames> {
+  public name = 'executeShellCommand';
+  public usage = 'execute a shell command';
+  public parameters = {
+    command: 'command to execute',
+  };
 
   protected async executeAction(
     parameters: Record<ExecuteShellCommandActionParametersNames, string>
@@ -24,12 +21,12 @@ export class ExecuteShellCommandAction extends LLMAction<ExecuteShellCommandActi
       const result = execSync(command);
       return {
         message: `$ ${command}\n${result.toString()}`,
-        type: "success",
+        type: 'success',
       };
     } catch (error) {
       return {
         message: `$ ${command}\n${error.message}`,
-        type: "error",
+        type: 'error',
       };
     }
   }

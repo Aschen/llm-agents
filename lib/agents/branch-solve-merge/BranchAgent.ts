@@ -2,32 +2,26 @@ import { PromptTemplate } from 'langchain/prompts';
 
 import { AgentOneShot } from '../../AgentOneShot';
 import { FileCache } from '../../cache/FileCache';
-import { OneShotAction } from '../../actions/LLMAction';
+import { Instruction } from '../../instructions/Instruction';
 
 export type CriteriaDefinition = {
   name: string;
   parameters: { definition: string };
 };
 
-class CriteriaAction extends OneShotAction {
+class CriteriaInstruction extends Instruction {
   public name = 'criteria';
 
   public usage =
     'describe one of the criteria to evaluate the answer. you can use this action multiple times to describe multiple criteria';
 
-  public parameters = [
-    {
-      name: 'criteria',
-      usage: 'Name of the criteria',
-    },
-    {
-      name: 'definition',
-      usage: 'Definition of the criteria',
-    },
-  ];
+  public parameters = {
+    criteria: 'name of the criteria',
+    definition: 'definition of the criteria',
+  };
 }
 
-export class BranchAgent extends AgentOneShot {
+export class BranchAgent extends AgentOneShot<CriteriaInstruction> {
   protected template = new PromptTemplate({
     template: `You are an expert in question and answer analysis. 
 You have a lot of experience in every field.
@@ -43,13 +37,13 @@ The question is the following:
 # END QUESTION
 
 Answer with the following actions:
-{actions}
+{instructionsDescription}
 
 {existingCriteriaInstructionsEmphasis}
 `,
     inputVariables: [
       'question',
-      'actions',
+      'instructionsDescription',
       'criteriaCount',
       'existingCriteriaInstructionsEmphasis',
       'existingCriteriaInstructions',
@@ -69,7 +63,10 @@ Answer with the following actions:
     criteriaCount?: number;
     criterias?: string[];
   }) {
-    super({ actions: [new CriteriaAction()], cacheEngine: new FileCache() });
+    super({
+      instructions: [new CriteriaInstruction()],
+      cacheEngine: new FileCache(),
+    });
 
     this.question = question;
     this.criteriaCount = criteriaCount;
@@ -77,10 +74,10 @@ Answer with the following actions:
   }
 
   protected formatPrompt({
-    actions,
+    instructionsDescription,
     feedbackSteps,
   }: {
-    actions: string;
+    instructionsDescription: string;
     feedbackSteps?: string[] | undefined;
   }): Promise<string> {
     return this.template.format({
@@ -103,7 +100,7 @@ Answer with the following actions:
           } CRITERIAS I GAVE TO YOU: ${this.criterias.join(', ')}`
         : '',
 
-      actions,
+      instructionsDescription,
     });
   }
 }
