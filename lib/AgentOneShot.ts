@@ -8,7 +8,7 @@ import {
 import { LLMAnswer } from './instructions/LLMAnswer';
 
 export abstract class AgentOneShot<
-  TLLMAnswer extends LLMAnswer
+  TLLMAnswer extends LLMAnswer = LLMAnswer
 > extends AbstractAgent {
   protected abstract template: PromptTemplate;
 
