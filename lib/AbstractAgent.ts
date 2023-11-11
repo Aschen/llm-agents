@@ -45,7 +45,7 @@ const MODELS_COST = {
 
 export type AgentAvailableModels = keyof typeof MODELS_COST;
 
-type AgentListeners = {
+export type AgentEventListeners = {
   prompt: ({
     id,
     key,
@@ -75,7 +75,7 @@ type AgentListeners = {
   }) => void;
 };
 
-export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
+export abstract class AbstractAgent extends EventEmitter<AgentEventListeners> {
   public step = 0;
   public actionsCount = 0;
   public actionsErrorCount = 0;
