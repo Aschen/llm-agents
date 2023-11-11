@@ -17,7 +17,7 @@ export abstract class AgentOneShot<
   }
 
   async run({
-    modelName = 'gpt-4',
+    modelName = 'gpt-4-1106-preview',
     temperature = 0.0,
   }: {
     modelName?: AgentAvailableModels;
