@@ -6,7 +6,6 @@ import { PromptTemplate } from 'langchain/prompts';
 import { CacheEngine } from './cache/CacheEngine';
 import { LLMAnswer } from './instructions/LLMAnswer';
 import { Instruction } from './instructions/Instruction';
-import { EventEmitter } from './EventEmitter';
 import { uuidv4 } from './helpers/uuid';
 import { hashString } from './helpers/hash';
 import { Action, ActionFeedback } from './instructions/Action';
@@ -75,7 +74,7 @@ export type AgentEventListeners = {
   }) => void;
 };
 
-export abstract class AbstractAgent extends EventEmitter<AgentEventListeners> {
+export abstract class AbstractAgent {
   public step = 0;
   public actionsCount = 0;
   public actionsErrorCount = 0;
@@ -110,6 +109,35 @@ export abstract class AbstractAgent extends EventEmitter<AgentEventListeners> {
 
   protected abstract run(...args: unknown[]): Promise<unknown>;
 
+  private static listeners = new Map<
+    keyof AgentEventListeners,
+    Array<AgentEventListeners[keyof AgentEventListeners]>
+  >();
+
+  public static on: <K extends keyof AgentEventListeners>(
+    event: K,
+    listener: AgentEventListeners[K]
+  ) => void = function (event, listener) {
+    if (!AbstractAgent.listeners.has(event)) {
+      AbstractAgent.listeners.set(event, []);
+    }
+
+    AbstractAgent.listeners.get(event).push(listener);
+  };
+
+  public static emit: <K extends keyof AgentEventListeners>(
+    event: K,
+    payload: any
+  ) => void = function (event, payload) {
+    if (!AbstractAgent.listeners.has(event)) {
+      return;
+    }
+
+    for (const listener of AbstractAgent.listeners.get(event)) {
+      listener(payload as any);
+    }
+  };
+
   constructor({
     instructions = [],
     verbose = true,
@@ -117,8 +145,6 @@ export abstract class AbstractAgent extends EventEmitter<AgentEventListeners> {
     localDebug = LOCAL_DEBUG,
     tries = 1,
   }: AgentOptions = {}) {
-    super();
-
     this.instructions = instructions;
     this.verbose = verbose;
     this.cacheEngine = cacheEngine;
@@ -173,7 +199,7 @@ export abstract class AbstractAgent extends EventEmitter<AgentEventListeners> {
     const id = uuidv4();
     const inputCost = this.computePromptCosts({ prompt, model });
 
-    this.emit('prompt', {
+    AbstractAgent.emit('prompt', {
       id,
       model,
       key: promptCacheKey,
@@ -185,7 +211,7 @@ export abstract class AbstractAgent extends EventEmitter<AgentEventListeners> {
 
     const outputCost = this.computeAnswerCosts({ answer, model });
 
-    this.emit('answer', {
+    AbstractAgent.emit('answer', {
       id,
       model,
       key: answerCacheKey,

@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 
 import { BackupAgent } from './BackupAgent';
+import { AbstractAgent } from '../../../lib/AbstractAgent';
 
 const BEST_ACTION_COUNT = 22;
 const BEST_STEP_COUNT = 4;
