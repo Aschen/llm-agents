@@ -273,7 +273,7 @@ export abstract class AbstractAgent {
    *
    * If localDebug is true, the cache file will prefixed by a incrementing number
    */
-  private cacheKey({
+  protected cacheKey({
     type,
     prompt,
   }: {

@@ -6,6 +6,7 @@ import {
   AgentAvailableModels,
 } from './AbstractAgent';
 import { LLMAnswer } from './instructions/LLMAnswer';
+import { AgentParseError } from './AgentParseError';
 
 export abstract class AgentOneShot<
   TLLMAnswer extends LLMAnswer = LLMAnswer
@@ -41,7 +42,11 @@ export abstract class AgentOneShot<
           answers = this.extractInstructions({ answer });
         } catch (error) {
           if (this.tries === 0) {
-            throw error;
+            throw new AgentParseError({
+              message: error.message,
+              answerKey: this.cacheKey({ type: 'answer', prompt }),
+              promptKey: this.cacheKey({ type: 'prompt', prompt }),
+            });
           }
 
           this.tries--;
