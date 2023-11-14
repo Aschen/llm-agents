@@ -20,6 +20,15 @@ export abstract class Instruction<TParametersNames extends string = string> {
     );
   }
 
+  static find<T extends Instruction>(
+    this: new (...args: any[]) => T,
+    instructions: any[]
+  ): T | undefined {
+    return instructions.find(
+      (i) => i.name === this.name.replace('Instruction', '')
+    );
+  }
+
   public abstract name: string;
   public abstract usage: string;
   public abstract parameters: Record<TParametersNames, string>;
