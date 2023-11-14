@@ -3,6 +3,13 @@ export type InstructionOptions = {
 };
 
 export abstract class Instruction<TParametersNames extends string = string> {
+  static is<T extends Instruction>(
+    this: new (...args: any[]) => T,
+    instruction: any
+  ): instruction is T {
+    return instruction instanceof this;
+  }
+
   public abstract name: string;
   public abstract usage: string;
   public abstract parameters: Record<TParametersNames, string>;
