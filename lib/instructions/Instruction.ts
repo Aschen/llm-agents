@@ -7,14 +7,14 @@ export abstract class Instruction<TParametersNames extends string = string> {
     this: new (...args: any[]) => T,
     instruction: any
   ): instruction is T {
-    return instruction instanceof this;
+    return instruction.name === this.name;
   }
 
   static select<T extends Instruction>(
     this: new (...args: any[]) => T,
     instructions: any[]
   ): T[] {
-    return instructions.filter((i) => i instanceof this);
+    return instructions.filter((i) => i.name === this.name);
   }
 
   public abstract name: string;
