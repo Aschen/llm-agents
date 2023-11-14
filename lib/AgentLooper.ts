@@ -1,5 +1,6 @@
 import { PromptTemplate } from 'langchain/prompts';
 
+import { AgentParseError } from './AgentParseError';
 import { AgentOptions, AbstractAgent } from './AbstractAgent';
 import { LLMAnswer } from './instructions/LLMAnswer';
 import { Action } from './instructions/Action';
@@ -53,7 +54,11 @@ export abstract class AgentLooper extends AbstractAgent {
         answers = this.extractInstructions({ answer });
       } catch (error) {
         if (this.tries === 0) {
-          throw error;
+          throw new AgentParseError({
+            message: error.message,
+            answerKey: this.cacheKey({ type: 'answer', prompt }),
+            promptKey: this.cacheKey({ type: 'prompt', prompt }),
+          });
         }
 
         this.tries--;

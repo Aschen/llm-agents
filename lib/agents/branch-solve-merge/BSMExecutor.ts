@@ -21,6 +21,10 @@ export type AnswersAnalyses = Array<{
   analyses: Array<{ criteria: string; analyse: string; note: number }>;
 }>;
 
+const NODE_ENV = process.env.NODE_ENV || 'development';
+
+const consoleLog = NODE_ENV === 'development' ? console.log : () => {};
+
 export class BSMExecutor {
   public mergeMethod: 'classic' | 'agent';
   public question: string;
@@ -66,11 +70,11 @@ export class BSMExecutor {
       criterias: Array.from(this.criterias.keys()),
     });
 
-    console.log(`Branch: generating ${this.criteriaCount} criterias`);
+    consoleLog(`Branch: generating ${this.criteriaCount} criterias`);
 
     const criterias = await branchAgent.run();
 
-    console.log(
+    consoleLog(
       `Branch: answer will be analyzed with the following criterias: ${Object.values(
         criterias
       )
@@ -107,15 +111,15 @@ export class BSMExecutor {
 
     const { bestAnswer, mergedAnswer } = await this.merge();
 
-    console.log('Merge: best available answer:');
-    console.log(answers[bestAnswer.parameters.index]);
-    console.log('\n------\n');
-    console.log('Merge: merged answer:');
-    console.log(mergedAnswer.parameters.answer);
+    consoleLog('Merge: best available answer:');
+    consoleLog(answers[bestAnswer.parameters.index]);
+    consoleLog('\n------\n');
+    consoleLog('Merge: merged answer:');
+    consoleLog(mergedAnswer.parameters.answer);
   }
 
   private generateAnswers(): Promise<string[]> {
-    console.log(`(Generating ${this.answerCount} answers)`);
+    consoleLog(`(Generating ${this.answerCount} answers)`);
 
     const promises: Promise<string>[] = [];
 
@@ -137,7 +141,7 @@ export class BSMExecutor {
     criteriaName: string;
     criteria: string;
   }): Promise<Analysis> {
-    console.log(
+    consoleLog(
       `Solve: evaluate answer n°${answerIndex} with criteria ${criteriaName}`
     );
 
@@ -148,7 +152,7 @@ export class BSMExecutor {
     });
 
     const analysis = await solveAgent.run();
-    console.log(
+    consoleLog(
       `Solve: grade answer n°${answerIndex} on criteria ${criteriaName} with ${analysis[0].parameters.note}`
     );
 
@@ -198,9 +202,7 @@ export class BSMExecutor {
   }
 
   private async merge() {
-    console.log(
-      `Merge: merge ${this.answersAnalyses.length} analyses together`
-    );
+    consoleLog(`Merge: merge ${this.answersAnalyses.length} analyses together`);
 
     const mergeAgent = new MergeAgent({
       answersAnalyses: this.answersAnalyses,

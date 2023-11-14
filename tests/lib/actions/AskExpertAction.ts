@@ -45,6 +45,3 @@ export class AskExpertAction extends Action {
     });
   }
 }
-
-const a = new AskExpertAction();
-console.log(a.describe);

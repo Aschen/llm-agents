@@ -6,8 +6,8 @@ import { PromptTemplate } from 'langchain/prompts';
 import { CacheEngine } from './cache/CacheEngine';
 import { LLMAnswer } from './instructions/LLMAnswer';
 import { Instruction } from './instructions/Instruction';
-import { EventEmitter } from './EventEmitter';
 import { uuidv4 } from './helpers/uuid';
+import { hashString } from './helpers/hash';
 import { Action, ActionFeedback } from './instructions/Action';
 
 const LOCAL_DEBUG = process.env.NODE_ENV !== 'production';
@@ -44,29 +44,37 @@ const MODELS_COST = {
 
 export type AgentAvailableModels = keyof typeof MODELS_COST;
 
-type AgentListeners = {
+export type AgentEventListeners = {
   prompt: ({
     id,
+    key,
+    model,
     prompt,
     cost,
   }: {
     id: string;
+    key: string;
+    model: string;
     prompt: string;
     cost: number;
   }) => void;
 
   answer: ({
     id,
+    key,
+    model,
     answer,
     cost,
   }: {
     id: string;
+    key: string;
+    model: string;
     answer: string;
     cost: number;
   }) => void;
 };
 
-export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
+export abstract class AbstractAgent {
   public step = 0;
   public actionsCount = 0;
   public actionsErrorCount = 0;
@@ -101,6 +109,35 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
 
   protected abstract run(...args: unknown[]): Promise<unknown>;
 
+  private static listeners = new Map<
+    keyof AgentEventListeners,
+    Array<AgentEventListeners[keyof AgentEventListeners]>
+  >();
+
+  public static on: <K extends keyof AgentEventListeners>(
+    event: K,
+    listener: AgentEventListeners[K]
+  ) => void = function (event, listener) {
+    if (!AbstractAgent.listeners.has(event)) {
+      AbstractAgent.listeners.set(event, []);
+    }
+
+    AbstractAgent.listeners.get(event).push(listener);
+  };
+
+  public static emit: <K extends keyof AgentEventListeners>(
+    event: K,
+    payload: any
+  ) => void = function (event, payload) {
+    if (!AbstractAgent.listeners.has(event)) {
+      return;
+    }
+
+    for (const listener of AbstractAgent.listeners.get(event)) {
+      listener(payload as any);
+    }
+  };
+
   constructor({
     instructions = [],
     verbose = true,
@@ -108,8 +145,6 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
     localDebug = LOCAL_DEBUG,
     tries = 1,
   }: AgentOptions = {}) {
-    super();
-
     this.instructions = instructions;
     this.verbose = verbose;
     this.cacheEngine = cacheEngine;
@@ -142,14 +177,15 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
       temperature,
     });
 
-    if (this.cacheEngine && cache) {
-      this.initCache();
+    // We always need the cache key to emit them alongside prompt/answer events
+    this.initCache();
+    const answerCacheKey = this.cacheKey({ type: 'answer', prompt });
+    const promptCacheKey = this.cacheKey({ type: 'prompt', prompt });
 
-      const promptCacheKey = this.cacheKey({ type: 'prompt', prompt });
+    if (this.cacheEngine && cache) {
+      this.log(`Cache activated: ${this.cacheDir}`);
 
       await this.cacheEngine.set(promptCacheKey, prompt);
-
-      const answerCacheKey = this.cacheKey({ type: 'answer', prompt });
 
       if (await this.cacheEngine.has(answerCacheKey)) {
         this.log(`Using cached answer at "${answerCacheKey}"`);
@@ -162,16 +198,28 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
 
     const id = uuidv4();
     const inputCost = this.computePromptCosts({ prompt, model });
-    this.emit('prompt', { id, prompt, cost: inputCost });
+
+    AbstractAgent.emit('prompt', {
+      id,
+      model,
+      key: promptCacheKey,
+      prompt,
+      cost: inputCost,
+    });
 
     const answer = await llm.call(prompt);
 
     const outputCost = this.computeAnswerCosts({ answer, model });
-    this.emit('answer', { id, answer, cost: outputCost });
+
+    AbstractAgent.emit('answer', {
+      id,
+      model,
+      key: answerCacheKey,
+      answer,
+      cost: outputCost,
+    });
 
     if (this.cacheEngine && cache) {
-      const answerCacheKey = this.cacheKey({ type: 'answer', prompt });
-
       await this.cacheEngine.set(answerCacheKey, answer);
     }
 
@@ -193,7 +241,7 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
 
     this.cost += inputCost;
 
-    return inputCost;
+    return parseFloat(inputCost.toFixed(5));
   }
 
   private computeAnswerCosts({
@@ -211,7 +259,7 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
 
     this.cost += outputCost;
 
-    return outputCost;
+    return parseFloat(outputCost.toFixed(5));
   }
 
   protected log(...chunks: string[]) {
@@ -225,14 +273,14 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
    *
    * If localDebug is true, the cache file will prefixed by a incrementing number
    */
-  private cacheKey({
+  protected cacheKey({
     type,
     prompt,
   }: {
     type: 'prompt' | 'answer';
     prompt: string;
   }) {
-    const promptHash = this.cacheEngine.hash(prompt);
+    const promptHash = hashString(prompt);
 
     let filename = '';
 
@@ -243,17 +291,18 @@ export abstract class AbstractAgent extends EventEmitter<AgentListeners> {
     return Path.join(this.cacheDir, `${filename}${promptHash}-${type}.txt`);
   }
 
+  /**
+   * Must be called when the prompt is already formated.
+   * The only place where we can assume this is the callModel method.
+   */
   private initCache() {
-    if (this.cacheInitialized || this.cacheEngine === null) {
-      this.log(`Cache activated: ${this.cacheDir}`);
+    if (this.cacheInitialized) {
       return;
     }
 
-    this.cacheHash = this.cacheEngine.hash(this.template.template).slice(0, 10);
+    this.cacheHash = hashString(this.template.template).slice(0, 10);
 
     this.cacheDir = Path.join(kebabCase(this.constructor.name), this.cacheHash);
-
-    this.log(`Cache activated: ${this.cacheDir}`);
 
     this.cacheInitialized = true;
   }

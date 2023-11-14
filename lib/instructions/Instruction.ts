@@ -2,9 +2,38 @@ export type InstructionOptions = {
   verbose?: boolean;
 };
 
+// @todo name should be extracted from the constructor
 export abstract class Instruction<TParametersNames extends string = string> {
   static get getName() {
     return this.name.replace("Instruction", "").replace("Action", "");
+  }
+
+  static is<T extends Instruction>(
+    this: new (...args: any[]) => T,
+    instruction: any
+  ): instruction is T {
+    // @ts-ignore
+    return instruction.name === this.getName;
+  }
+
+  static select<T extends Instruction>(
+    this: new (...args: any[]) => T,
+    instructions: any[]
+  ): T[] {
+    return instructions.filter(
+      // @ts-ignore
+      (i) => i.name === this.getName
+    );
+  }
+
+  static find<T extends Instruction>(
+    this: new (...args: any[]) => T,
+    instructions: any[]
+  ): T | undefined {
+    return instructions.find(
+      // @ts-ignore
+      (i) => i.name === this.getName
+    );
   }
 
   public abstract usage: string;
