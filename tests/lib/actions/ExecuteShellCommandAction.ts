@@ -1,18 +1,15 @@
-import { execSync } from 'child_process';
+import { execSync } from "child_process";
 
-import { Action, ActionFeedback } from '../../../index';
+import { Action, ActionFeedback } from "../../../index";
 
-type ExecuteShellCommandActionParametersNames = 'command';
-
-export class ExecuteShellCommandAction extends Action<ExecuteShellCommandActionParametersNames> {
-  public name = 'executeShellCommand';
-  public usage = 'execute a shell command';
+export class ExecuteShellCommandAction extends Action {
+  public usage = "execute a shell command";
   public parameters = {
-    command: 'command to execute',
+    command: "command to execute",
   };
 
   protected async executeAction(
-    parameters: Record<ExecuteShellCommandActionParametersNames, string>
+    parameters: Record<keyof ExecuteShellCommandAction["parameters"], string>
   ): Promise<ActionFeedback> {
     const { command } = parameters;
 
@@ -21,12 +18,12 @@ export class ExecuteShellCommandAction extends Action<ExecuteShellCommandActionP
       const result = execSync(command);
       return {
         message: `$ ${command}\n${result.toString()}`,
-        type: 'success',
+        type: "success",
       };
     } catch (error) {
       return {
         message: `$ ${command}\n${error.message}`,
-        type: 'error',
+        type: "error",
       };
     }
   }

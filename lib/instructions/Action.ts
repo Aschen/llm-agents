@@ -1,8 +1,8 @@
-import { Instruction, InstructionOptions } from './Instruction';
+import { Instruction, InstructionOptions } from "./Instruction";
 
 export type ActionFeedback = {
   message: string;
-  type: 'error' | 'success';
+  type: "error" | "success";
 };
 
 export type ActionOptions = InstructionOptions & {
@@ -13,9 +13,7 @@ export type ActionOptions = InstructionOptions & {
   feedbackSizeLimitMessage?: string;
 };
 
-export abstract class Action<
-  TParametersNames extends string = string
-> extends Instruction {
+export abstract class Action extends Instruction {
   /**
    * Maximum number of characters in the feedback message.
    */
@@ -24,7 +22,7 @@ export abstract class Action<
 
   constructor({
     feedbackSizeLimit = 500,
-    feedbackSizeLimitMessage = 'action feedback was truncated because it exceeded the size limit',
+    feedbackSizeLimitMessage = "action feedback was truncated because it exceeded the size limit",
     verbose,
   }: ActionOptions = {}) {
     super({ verbose });
@@ -34,11 +32,11 @@ export abstract class Action<
   }
 
   protected abstract executeAction(
-    parameters: Record<TParametersNames, string>
+    parameters: Record<keyof Action["parameters"], string>
   ): Promise<ActionFeedback>;
 
   public async execute(
-    parameters: Record<TParametersNames, string>
+    parameters: Record<keyof Action["parameters"], string>
   ): Promise<ActionFeedback & { name: string }> {
     const feedback = await this.executeAction(parameters);
 
@@ -62,7 +60,7 @@ export abstract class Action<
     feedback: ActionFeedback;
     parameters: Record<string, string>;
   }) {
-    if (this.format === 'singleline') {
+    if (this.format === "singleline") {
       return this.describeFeedbackSingleline({ feedback, parameters });
     }
 
@@ -101,7 +99,7 @@ export abstract class Action<
     }
 
     result += `\n    <Feedback type="${feedback.type}">\n      ${feedback.message}\n    </Feedback>`;
-    result += '\n  </Action>';
+    result += "\n  </Action>";
 
     return result;
   }

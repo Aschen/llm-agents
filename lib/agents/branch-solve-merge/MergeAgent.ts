@@ -1,30 +1,26 @@
-import { PromptTemplate } from 'langchain/prompts';
+import { PromptTemplate } from "langchain/prompts";
 
-import { AgentOneShot } from '../../AgentOneShot';
-import { Instruction } from '../../instructions/Instruction';
-import { FileCache } from '../../cache/FileCache';
-import { AnswersAnalyses } from './BSMExecutor';
+import { AgentOneShot } from "../../AgentOneShot";
+import { Instruction } from "../../instructions/Instruction";
+import { FileCache } from "../../cache/FileCache";
+import { AnswersAnalyses } from "./BSMExecutor";
 
 export class MergedAnswerInstruction extends Instruction {
-  public name = 'mergedAnswer';
-
   public usage =
-    'use the analyses and the answer content to create a new answer to the question';
+    "use the analyses and the answer content to create a new answer to the question";
 
   public parameters = {
-    answer: 'content of the answer',
+    answer: "content of the answer",
   };
 }
 
 export class BestAnswerInstruction extends Instruction {
-  public name = 'bestAnswer';
+  public format = "multiline" as const;
 
-  public format = 'multiline' as const;
-
-  public usage = 'best answer number based on the analysis';
+  public usage = "best answer number based on the analysis";
 
   public parameters = {
-    index: 'number of the answer',
+    index: "number of the answer",
   };
 }
 
@@ -32,7 +28,7 @@ export class MergeAgent extends AgentOneShot<
   MergedAnswerInstruction | BestAnswerInstruction
 > {
   protected template = new PromptTemplate({
-    template: `You are an expert in question and answer analysis. 
+    template: `You are an expert in question and answer analysis.
 You have a lot of experience in every field.
 
 A question was asked to you:
@@ -50,7 +46,7 @@ You need to merge their analysis into a single analysis.
 Answer with the following actions:
 {instructionsDescription}
 `,
-    inputVariables: ['question', 'analyses', 'instructionsDescription'],
+    inputVariables: ["question", "analyses", "instructionsDescription"],
   });
 
   private question: string;
@@ -76,7 +72,7 @@ Answer with the following actions:
   }
 
   describeAnalysis() {
-    let description = '';
+    let description = "";
 
     for (const answerAnalyses of this.answersAnalyses) {
       description += `## Answer ${answerAnalyses.answerIndex}\n`;
