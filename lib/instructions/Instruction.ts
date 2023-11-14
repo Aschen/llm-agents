@@ -10,6 +10,13 @@ export abstract class Instruction<TParametersNames extends string = string> {
     return instruction instanceof this;
   }
 
+  static select<T extends Instruction>(
+    this: new (...args: any[]) => T,
+    instructions: any[]
+  ): T[] {
+    return instructions.filter((i) => i instanceof this);
+  }
+
   public abstract name: string;
   public abstract usage: string;
   public abstract parameters: Record<TParametersNames, string>;
