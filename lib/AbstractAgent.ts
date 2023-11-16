@@ -489,7 +489,36 @@ export abstract class AbstractAgent {
    *
    * @returns "The task I'm asking you is vital to my career, and I greatly value your thorough analysis."
    */
-  get promptEnhancers() {
+  protected get promptEnhancers() {
+    return "The task I'm asking you is vital to my career, and I greatly value your thorough analysis.";
+  }
+
+  /**
+   * Render the instruction block
+   *
+   * @example
+   * You can answer with the following actions:
+   * # BEGIN ACTIONS LIST
+   * <Action name="ActionName" usage="do something interesting" />
+   * # END ACTIONS LIST
+   * ONLY ANSWER ACTION AS THEY ARE DEFINED USING THIS XML-LIKE FORMAT OTHERWISE I CANNOT PARSE THEM
+   */
+  protected promptInstructionsBlock() {
+    return `You can answer with the following actions:
+# BEGIN ACTIONS LIST
+${this.describeInstructions()}
+# END ACTIONS LIST
+ONLY ANSWER ACTION AS THEY ARE DEFINED USING THIS XML-LIKE FORMAT OTHERWISE I CANNOT PARSE THEM`;
+  }
+
+  /**
+   * Use this in your prompt to improve it's performances
+   *
+   * @see https://arxiv.org/pdf/2307.11760.pdf
+   *
+   * @returns "The task I'm asking you is vital to my career, and I greatly value your thorough analysis."
+   */
+  protected promptEnhancersBlock() {
     return "The task I'm asking you is vital to my career, and I greatly value your thorough analysis.";
   }
 }
