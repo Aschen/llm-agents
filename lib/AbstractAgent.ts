@@ -483,17 +483,6 @@ export abstract class AbstractAgent {
   }
 
   /**
-   * Use this in your prompt to improve it's performances
-   *
-   * @see https://arxiv.org/pdf/2307.11760.pdf
-   *
-   * @returns "The task I'm asking you is vital to my career, and I greatly value your thorough analysis."
-   */
-  protected get promptEnhancers() {
-    return "The task I'm asking you is vital to my career, and I greatly value your thorough analysis.";
-  }
-
-  /**
    * Render the instruction block
    *
    * @example
@@ -505,9 +494,10 @@ export abstract class AbstractAgent {
    */
   protected promptInstructionsBlock() {
     return `You can answer with the following actions:
-# BEGIN ACTIONS LIST
-${this.describeInstructions()}
-# END ACTIONS LIST
+${this.contentDelimiter({
+  name: 'ACTIONS LIST',
+  content: this.describeInstructions(),
+})}
 ONLY ANSWER ACTION AS THEY ARE DEFINED USING THIS XML-LIKE FORMAT OTHERWISE I CANNOT PARSE THEM`;
   }
 
@@ -520,5 +510,17 @@ ONLY ANSWER ACTION AS THEY ARE DEFINED USING THIS XML-LIKE FORMAT OTHERWISE I CA
    */
   protected promptEnhancersBlock() {
     return "The task I'm asking you is vital to my career, and I greatly value your thorough analysis.";
+  }
+
+  protected contentDelimiter({
+    name,
+    content,
+  }: {
+    name: string;
+    content: string;
+  }) {
+    return `# BEGIN ${name}
+${content}
+# END ${name}`;
   }
 }
