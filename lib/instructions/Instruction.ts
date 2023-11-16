@@ -4,11 +4,16 @@ export type InstructionOptions = {
 
 // @todo name should be extracted from the constructor
 export abstract class Instruction<TParametersNames extends string = string> {
+  static get getName() {
+    return this.name.replace("Instruction", "").replace("Action", "");
+  }
+
   static is<T extends Instruction>(
     this: new (...args: any[]) => T,
     instruction: any
   ): instruction is T {
-    return instruction.name === this.name.replace('Instruction', '');
+    // @ts-ignore
+    return instruction.name === this.getName;
   }
 
   static select<T extends Instruction>(
@@ -16,7 +21,8 @@ export abstract class Instruction<TParametersNames extends string = string> {
     instructions: any[]
   ): T[] {
     return instructions.filter(
-      (i) => i.name === this.name.replace('Instruction', '')
+      // @ts-ignore
+      (i) => i.name === this.getName
     );
   }
 
@@ -25,15 +31,15 @@ export abstract class Instruction<TParametersNames extends string = string> {
     instructions: any[]
   ): T | undefined {
     return instructions.find(
-      (i) => i.name === this.name.replace('Instruction', '')
+      // @ts-ignore
+      (i) => i.name === this.getName
     );
   }
 
-  public abstract name: string;
   public abstract usage: string;
   public abstract parameters: Record<TParametersNames, string>;
 
-  public format: 'singleline' | 'multiline' = 'singleline';
+  public format: "singleline" | "multiline" = "singleline";
 
   private verbose: boolean;
 
@@ -42,33 +48,40 @@ export abstract class Instruction<TParametersNames extends string = string> {
   }
 
   get describe(): string {
-    if (this.format === 'singleline') {
+    if (this.format === "singleline") {
       return this.describeSingleLine;
     }
 
     return this.describeMultiline;
   }
 
+  get name(): string {
+    // @ts-ignore
+    return this.constructor.getName;
+  }
+
   private get describeSingleLine(): string {
+    // @ts-ignore
     let result = `<Action name="${this.name}" usage="${this.usage}">`;
 
     for (const [name, usage] of Object.entries(this.parameters)) {
       result += ` parameter:${name}="<${usage}>"`;
     }
 
-    result += ' />';
+    result += " />";
 
     return result;
   }
 
   private get describeMultiline() {
+    // @ts-ignore
     let result = `Use this action to: ${this.usage}\n<Action name="${this.name}">`;
 
     for (const [name, usage] of Object.entries(this.parameters)) {
       result += `\n  <Parameter name="${name}">\n    // ${usage}\n  </Parameter>`;
     }
 
-    result += '\n</Action>';
+    result += "\n</Action>";
 
     return result;
   }

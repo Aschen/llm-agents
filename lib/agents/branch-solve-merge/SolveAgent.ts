@@ -1,23 +1,21 @@
-import { PromptTemplate } from 'langchain/prompts';
+import { PromptTemplate } from "langchain/prompts";
 
-import { AgentOneShot } from '../../AgentOneShot';
-import { Instruction } from '../../instructions/Instruction';
-import { FileCache } from '../../cache/FileCache';
+import { AgentOneShot } from "../../AgentOneShot";
+import { Instruction } from "../../instructions/Instruction";
+import { FileCache } from "../../cache/FileCache";
 
 class AnalysisInstruction extends Instruction {
-  public name = 'analysis';
-
-  public usage = 'analysis of the answer to the question based on the criteria';
+  public usage = "analysis of the answer to the question based on the criteria";
 
   public parameters = {
-    analysis: 'content of the analysis',
-    note: 'note on 10 of the answer based on the criteria',
+    analysis: "content of the analysis",
+    note: "note on 10 of the answer based on the criteria",
   };
 }
 
 export class SolveAgent extends AgentOneShot<AnalysisInstruction> {
   protected template = new PromptTemplate({
-    template: `You are an expert in question and answer analysis. 
+    template: `You are an expert in question and answer analysis.
 You have a lot of experience in every field.
 
 A question was asked to you:
@@ -45,10 +43,10 @@ Answer with the following actions:
 {instructionsDescription}
 `,
     inputVariables: [
-      'question',
-      'criteria',
-      'answer',
-      'instructionsDescription',
+      "question",
+      "criteria",
+      "answer",
+      "instructionsDescription",
     ],
   });
 

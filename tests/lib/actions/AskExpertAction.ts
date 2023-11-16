@@ -1,15 +1,14 @@
-import { createInterface } from 'readline';
+import { createInterface } from "readline";
 
-import { Action, ActionFeedback } from '../../../index';
+import { Action, ActionFeedback } from "../../../index";
 
-type AskExpertActionParametersNames = 'question';
+type AskExpertActionParametersNames = "question";
 
 export class AskExpertAction extends Action {
-  public name = 'askExpert';
   public usage =
-    'ask a question to an expert when you need help or you are stuck';
+    "ask a question to an expert when you need help or you are stuck";
   public parameters = {
-    question: 'question to ask to an expert',
+    question: "question to ask to an expert",
   };
 
   protected async executeAction(
@@ -22,12 +21,12 @@ export class AskExpertAction extends Action {
 
       return {
         message: `Answer: ${answer}`,
-        type: 'success',
+        type: "success",
       };
     } catch (error) {
       return {
         message: error.message as string,
-        type: 'error',
+        type: "error",
       };
     }
   }
