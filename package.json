@@ -1,6 +1,6 @@
 {
   "name": "llm-agents",
-  "version": "1.4.14",
+  "version": "1.4.15",
   "description": "LLM Agent framework for Node.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
