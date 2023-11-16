@@ -5,7 +5,7 @@ export type InstructionOptions = {
 // @todo name should be extracted from the constructor
 export abstract class Instruction<TParametersNames extends string = string> {
   static get getName() {
-    return this.name.replace("Instruction", "").replace("Action", "");
+    return this.name.replace('Instruction', '').replace('Action', '');
   }
 
   static is<T extends Instruction>(
@@ -39,7 +39,7 @@ export abstract class Instruction<TParametersNames extends string = string> {
   public abstract usage: string;
   public abstract parameters: Record<TParametersNames, string>;
 
-  public format: "singleline" | "multiline" = "singleline";
+  public format: 'singleline' | 'multiline' = 'singleline';
 
   private verbose: boolean;
 
@@ -48,7 +48,7 @@ export abstract class Instruction<TParametersNames extends string = string> {
   }
 
   get describe(): string {
-    if (this.format === "singleline") {
+    if (this.format === 'singleline') {
       return this.describeSingleLine;
     }
 
@@ -62,13 +62,13 @@ export abstract class Instruction<TParametersNames extends string = string> {
 
   private get describeSingleLine(): string {
     // @ts-ignore
-    let result = `<Action name="${this.name}" usage="${this.usage}">`;
+    let result = `Use this action to: ${this.usage}\n<Action name="${this.name}"`;
 
     for (const [name, usage] of Object.entries(this.parameters)) {
-      result += ` parameter:${name}="<${usage}>"`;
+      result += ` parameter:${name}="${usage}"`;
     }
 
-    result += " />";
+    result += ' />';
 
     return result;
   }
@@ -81,7 +81,7 @@ export abstract class Instruction<TParametersNames extends string = string> {
       result += `\n  <Parameter name="${name}">\n    // ${usage}\n  </Parameter>`;
     }
 
-    result += "\n</Action>";
+    result += '\n</Action>';
 
     return result;
   }
