@@ -463,7 +463,7 @@ export abstract class AbstractAgent {
   protected describeInstructions(): string {
     return this.instructions
       .map((instruction) => instruction.describe)
-      .join('\n');
+      .join('\n\n');
   }
 
   protected describeFeedbackSteps({
@@ -483,7 +483,7 @@ export abstract class AbstractAgent {
   }
 
   /**
-   * Render the instruction block
+   * Render the answer format block
    *
    * @example
    * You can answer with the following actions:
@@ -492,7 +492,7 @@ export abstract class AbstractAgent {
    * # END ACTIONS LIST
    * ONLY ANSWER ACTION AS THEY ARE DEFINED USING THIS XML-LIKE FORMAT OTHERWISE I CANNOT PARSE THEM
    */
-  protected promptInstructionsBlock() {
+  protected promptActionsBlock() {
     return `You can answer with the following actions:
 ${this.contentDelimiter({
   name: 'ACTIONS LIST',

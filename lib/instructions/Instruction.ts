@@ -39,7 +39,7 @@ export abstract class Instruction<TParametersNames extends string = string> {
   public abstract usage: string;
   public abstract parameters: Record<TParametersNames, string>;
 
-  public format: 'singleline' | 'multiline' = 'singleline';
+  public format: 'singleline' | 'multiline' = 'multiline';
 
   private verbose: boolean;
 
