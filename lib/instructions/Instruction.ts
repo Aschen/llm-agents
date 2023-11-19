@@ -29,10 +29,12 @@ export abstract class Instruction<TParametersNames extends string = string> {
   static find<T extends Instruction>(
     this: new (...args: any[]) => T,
     instructions: any[]
-  ): T | undefined {
-    return instructions.find(
-      // @ts-ignore
-      (i) => i.name === this.getName
+  ): T | null {
+    return (
+      instructions.find(
+        // @ts-ignore
+        (i) => i.name === this.getName
+      ) || null
     );
   }
 

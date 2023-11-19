@@ -1,12 +1,11 @@
 import { execSync } from 'child_process';
 
 import { BackupAgent } from './BackupAgent';
-import { AbstractAgent } from '../../../lib/AbstractAgent';
 
-const BEST_ACTION_COUNT = 22;
+const BEST_ACTION_COUNT = 21;
 const BEST_STEP_COUNT = 4;
-const BEST_COST = 0.222;
-const BEST_TIME = 84;
+const BEST_COST = 0.1059;
+const BEST_TIME = 35;
 
 // Setup
 execSync('rm -rf ./tests/prompt-engineering/backup-agent/destination');
@@ -22,7 +21,7 @@ const now = Date.now();
 await backupAgent.run();
 const elapsed = Date.now() - now;
 
-if (elapsed < BEST_TIME) {
+if (elapsed > BEST_TIME) {
   console.log(
     `You did it in ${Math.trunc(
       elapsed / 1000

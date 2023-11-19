@@ -5,20 +5,38 @@ import { AgentOptions, AbstractAgent } from './AbstractAgent';
 import { LLMAnswer } from './instructions/LLMAnswer';
 import { Action } from './instructions/Action';
 import { ActionDone } from './instructions/ActionDone';
+import { LLMProvider } from './llm-providers/LLMProvider';
+import { PromptCache } from './cache/PromptCache';
+import { OpenAIProvider } from './llm-providers/OpenAIProvider';
+import { kebabCase } from './helpers/string';
 
-export abstract class AgentLooper extends AbstractAgent {
+export abstract class AgentLooper<
+  TProvider extends LLMProvider = LLMProvider
+> extends AbstractAgent<TProvider> {
   protected abstract template: PromptTemplate;
 
   protected abstract formatPrompt({
-    instructionsDescription,
     feedbackSteps = [],
   }: {
-    instructionsDescription: string;
     feedbackSteps?: string[];
   }): Promise<string>;
 
-  constructor(options: AgentOptions = {}) {
-    super(options);
+  constructor(options: Partial<AgentOptions<TProvider>> = {}) {
+    const promptCache = new PromptCache({
+      cacheEngine: options.cacheEngine,
+    });
+
+    super({
+      ...options,
+      llmProvider:
+        options.llmProvider ||
+        // that's why I "love" typescript
+        (new OpenAIProvider({
+          promptCache,
+        }) as unknown as TProvider),
+    });
+
+    promptCache.agentName = kebabCase(this.constructor.name);
 
     this.instructions.push(new ActionDone());
 
@@ -34,19 +52,22 @@ export abstract class AgentLooper extends AbstractAgent {
   async run() {
     let done: boolean = false;
     let feedbackSteps: string[][] = [];
+    let previousCost = 0;
 
     while (!done) {
       this.log(`Step ${this.step}`);
 
       const prompt = await this.formatPrompt({
-        instructionsDescription: this.describeInstructions(),
         feedbackSteps: this.describeFeedbackSteps({ feedbackSteps }),
       });
 
-      const answer = await this.callModel({
-        model: 'gpt-4-1106-preview',
+      const answer = await this.llmProvider.call({
         prompt,
       });
+
+      const callCost = this.llmProvider.cost - previousCost;
+      this.log(`cost ${callCost.toFixed(4)}$`);
+      previousCost = this.llmProvider.cost;
 
       let answers: LLMAnswer[];
 
@@ -56,8 +77,8 @@ export abstract class AgentLooper extends AbstractAgent {
         if (this.tries === 0) {
           throw new AgentParseError({
             message: error.message,
-            answerKey: this.cacheKey({ type: 'answer', prompt }),
-            promptKey: this.cacheKey({ type: 'prompt', prompt }),
+            answerKey: this.promptCache.cacheKey({ type: 'answer', prompt }),
+            promptKey: this.promptCache.cacheKey({ type: 'prompt', prompt }),
           });
         }
 
@@ -67,8 +88,9 @@ export abstract class AgentLooper extends AbstractAgent {
 
       feedbackSteps[this.step] = [];
       let error = false;
+
       // AgentLooper only have Action as instruction so we can execute them
-      for (const answer of answers) {
+      for (const answer of answers.filter((a) => !ActionDone.is(a))) {
         const feedback = await this.executeAction({ answer });
 
         feedbackSteps[this.step].push(
@@ -84,18 +106,15 @@ export abstract class AgentLooper extends AbstractAgent {
         } else {
           this.actionsCount++;
         }
-
-        if (answer.name === 'done') {
-          console.log('DONE');
-          done = true;
-        }
       }
 
       // End the loop only if there were no error
-      done = done && !error;
+      done = ActionDone.find(answers) && !error;
 
       this.log(`Step ${this.step} done\n\n`);
       this.step++;
     }
+
+    this.log(`total cost ${this.llmProvider.cost.toFixed(4)}$`);
   }
 }

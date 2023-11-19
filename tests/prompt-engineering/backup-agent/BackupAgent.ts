@@ -12,14 +12,12 @@ export class BackupAgent extends AgentLooper {
   protected template = new PromptTemplate({
     template: `You are a backup agent capable of moving files from one place to another.
 
-You task is to backup the files containing the typescript code of a project.
-You need to copy the files containing the code into a backup directory.
-You can only move one file after another.
+You task is to backup the files of a project.
+You need to copy the files into a backup directory.
+You can use many actions at once. Optimize as much as possible the number of actions.
+Ensure all files in all directories are copied.
 
-You can use the following actions:
-# BEGIN ACTIONS DEFINITION
-{instructionsDescription}
-# END ACTIONS DEFINITION
+{actionsBlock}
 
 The last action result was:
 # BEGIN LAST ACTION RESULT
@@ -30,14 +28,15 @@ Ensure you are copying every files in every directories from the source.
 The source directory is {source} and the destination directory is {destination}.
 Skip node_modules directories.
 
-Start by a sentence summarizing the current state of your task according to the last action result.
-Then, answer with the actions you want to execute.
+Start your answer by a sentence explaining what you are doing and why.
+{promptEnhancersBlock}
 `,
     inputVariables: [
       'source',
       'destination',
-      'instructionsDescription',
+      'actionsBlock',
       'feedback',
+      'promptEnhancersBlock',
     ],
   });
 
@@ -61,17 +60,12 @@ Then, answer with the actions you want to execute.
     this.destination = destination;
   }
 
-  protected async formatPrompt({
-    instructionsDescription,
-    feedbackSteps,
-  }: {
-    instructionsDescription: string;
-    feedbackSteps: string[];
-  }) {
+  protected async formatPrompt({ feedbackSteps }: { feedbackSteps: string[] }) {
     return this.template.format({
       source: this.source,
       destination: this.destination,
-      instructionsDescription,
+      actionsBlock: this.promptActionsBlock(),
+      promptEnhancersBlock: this.promptEnhancersBlock(),
       feedback: feedbackSteps.join('\n\n'),
     });
   }

@@ -1,15 +1,16 @@
-import { execSync } from "child_process";
+import { execSync } from 'child_process';
 
-import { Action, ActionFeedback } from "../../../index";
+import { Action, ActionFeedback } from '../../../index';
 
 export class CreateDirectoryAction extends Action {
-  public usage = "create a directory";
+  public usage = 'create a directory';
   public parameters = {
-    path: "path of the directory to create",
+    path: 'path of the directory to create',
   };
+  public format = 'singleline' as const;
 
   protected async executeAction(
-    parameters: Record<keyof CreateDirectoryAction["parameters"], string>
+    parameters: Record<keyof CreateDirectoryAction['parameters'], string>
   ): Promise<ActionFeedback> {
     const { path } = parameters;
 
@@ -19,12 +20,12 @@ export class CreateDirectoryAction extends Action {
 
       return {
         message: `Created directory ${path}`,
-        type: "success",
+        type: 'success',
       };
     } catch (error) {
       return {
         message: error.message as string,
-        type: "error",
+        type: 'error',
       };
     }
   }

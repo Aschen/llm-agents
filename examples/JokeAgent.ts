@@ -1,4 +1,15 @@
-import { AgentOneShot, Instruction, PromptTemplate } from '../index';
+import {
+  AgentOneShot,
+  FileCache,
+  Instruction,
+  PromptTemplate,
+  OpenAIProvider,
+  PromptCache,
+} from '../index';
+
+const provider = new OpenAIProvider({
+  cacheEngine: new FileCache(),
+});
 
 export class TellJokeInstruction extends Instruction {
   public usage = 'tell a joke';
@@ -18,7 +29,10 @@ export class JokeAgent extends AgentOneShot<TellJokeInstruction> {
   });
 
   constructor() {
-    super({ instructions: [new TellJokeInstruction()] });
+    super({
+      instructions: [new TellJokeInstruction()],
+      llmProvider: provider,
+    });
   }
 
   protected formatPrompt(): Promise<string> {
@@ -31,9 +45,10 @@ export class JokeAgent extends AgentOneShot<TellJokeInstruction> {
 
 const agent = new JokeAgent();
 
-const results = await agent.run();
+const results = await agent.run({ temperature: 1 });
 
 // returns the first TellJokeInstruction or null
 const joke = TellJokeInstruction.find(results);
 
 console.log(joke?.parameters.joke);
+console.log(agent.cost);
