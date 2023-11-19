@@ -57,8 +57,16 @@ export abstract class AgentOneShot<
         if (this.tries === 0) {
           throw new AgentParseError({
             message: error.message,
-            answerKey: this.promptCache.cacheKey({ type: 'answer', prompt }),
-            promptKey: this.promptCache.cacheKey({ type: 'prompt', prompt }),
+            answerKey: this.promptCache.cacheKey({
+              agentName: this.name,
+              type: 'answer',
+              prompt,
+            }),
+            promptKey: this.promptCache.cacheKey({
+              agentName: this.name,
+              type: 'prompt',
+              prompt,
+            }),
           });
         }
 

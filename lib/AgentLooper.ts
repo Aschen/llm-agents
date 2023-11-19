@@ -32,11 +32,9 @@ export abstract class AgentLooper<
         options.llmProvider ||
         // that's why I "love" typescript
         (new OpenAIProvider({
-          promptCache,
+          cacheEngine: options.cacheEngine,
         }) as unknown as TProvider),
     });
-
-    promptCache.agentName = kebabCase(this.constructor.name);
 
     this.instructions.push(new ActionDone());
 
@@ -62,6 +60,7 @@ export abstract class AgentLooper<
       });
 
       const answer = await this.llmProvider.call({
+        agentName: this.name,
         prompt,
       });
 
@@ -77,8 +76,16 @@ export abstract class AgentLooper<
         if (this.tries === 0) {
           throw new AgentParseError({
             message: error.message,
-            answerKey: this.promptCache.cacheKey({ type: 'answer', prompt }),
-            promptKey: this.promptCache.cacheKey({ type: 'prompt', prompt }),
+            answerKey: this.promptCache.cacheKey({
+              agentName: this.name,
+              type: 'answer',
+              prompt,
+            }),
+            promptKey: this.promptCache.cacheKey({
+              agentName: this.name,
+              type: 'prompt',
+              prompt,
+            }),
           });
         }
 

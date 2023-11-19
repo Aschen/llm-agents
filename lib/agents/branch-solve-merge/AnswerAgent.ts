@@ -1,8 +1,10 @@
 import { PromptTemplate } from 'langchain/prompts';
 
 import { AbstractAgent } from '../../AbstractAgent';
+import { OpenAIProvider } from '../../llm-providers/OpenAIProvider';
+import { FileCache } from '../../cache/FileCache';
 
-export class AnswerAgent extends AbstractAgent {
+export class AnswerAgent extends AbstractAgent<OpenAIProvider> {
   protected template = new PromptTemplate({
     template: `You are an expert in question and answer analysis.
     
@@ -15,7 +17,9 @@ Here is the question:
 
   private question: string;
   constructor({ question }: { question: string }) {
-    super();
+    super({
+      llmProvider: new OpenAIProvider({ cacheEngine: new FileCache() }),
+    });
 
     this.question = question;
   }
@@ -23,8 +27,8 @@ Here is the question:
   public async run(): Promise<string> {
     const prompt = await this.template.format({ question: this.question });
 
-    const answer = await this.callModel({
-      model: 'gpt-4',
+    const answer = await this.llmProvider.call({
+      agentName: this.name,
       prompt,
       temperature: 0.8,
     });
@@ -32,13 +36,7 @@ Here is the question:
     return answer;
   }
 
-  protected async formatPrompt({
-    instructionsDescription,
-    feedbackSteps,
-  }: {
-    instructionsDescription: string;
-    feedbackSteps: string[];
-  }) {
+  protected async formatPrompt() {
     return this.template.format({ question: this.question });
   }
 }
