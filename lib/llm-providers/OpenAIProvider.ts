@@ -4,7 +4,7 @@ import { uuidv4 } from '../helpers/uuid';
 
 import { LLMProvider, LLMProviderListeners } from './LLMProvider';
 import { CacheEngine } from '../cache/CacheEngine';
-import { PromptCache } from 'lib/cache/PromptCache';
+import { PromptCache } from '../cache/PromptCache';
 
 export type OpenAIModels = keyof typeof OpenAIProvider.ModelsCost;
 
