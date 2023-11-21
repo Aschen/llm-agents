@@ -3,6 +3,7 @@ import { Instruction, InstructionOptions } from "./Instruction";
 export type ActionFeedback = {
   message: string;
   type: "error" | "success";
+  metadata?: Record<string, string>;
 };
 
 export type ActionOptions = InstructionOptions & {
@@ -46,6 +47,7 @@ export abstract class Action extends Instruction {
         message:
           feedback.message.slice(0, this.feedbackSizeLimit) +
           `[${this.feedbackSizeLimitMessage}]`,
+        metadata: feedback.metadata,
         type: feedback.type,
       };
     }
