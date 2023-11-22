@@ -4,9 +4,7 @@ import { AgentOptions, AbstractAgent } from './AbstractAgent';
 import { LLMAnswer } from './instructions/LLMAnswer';
 import { AgentParseError } from './AgentParseError';
 import { OpenAIProvider } from './llm-providers/OpenAIProvider';
-import { PromptCache } from './cache/PromptCache';
 import { LLMProvider } from './llm-providers/LLMProvider';
-import { kebabCase } from './helpers/string';
 
 export abstract class AgentOneShot<
   TLLMAnswer extends LLMAnswer = LLMAnswer,
@@ -15,10 +13,6 @@ export abstract class AgentOneShot<
   protected abstract template: PromptTemplate;
 
   constructor(options: Partial<AgentOptions<TProvider>>) {
-    const promptCache = new PromptCache({
-      cacheEngine: options.cacheEngine,
-    });
-
     super({
       ...options,
       llmProvider:
@@ -37,9 +31,7 @@ export abstract class AgentOneShot<
     modelName?: string;
     temperature?: number;
   } = {}): Promise<TLLMAnswer[]> {
-    const prompt = await this.formatPrompt({
-      instructionsDescription: this.describeInstructions(),
-    });
+    const prompt = await this.formatPrompt();
 
     const answer = await this.llmProvider.call({
       agentName: this.name,

@@ -36,7 +36,7 @@ export class OpenAIProvider implements LLMProvider {
     output: number;
   };
 
-  constructor({ cacheEngine }: { cacheEngine: CacheEngine }) {
+  constructor({ cacheEngine }: { cacheEngine?: CacheEngine }) {
     this.tokens = {
       input: 0,
       output: 0,

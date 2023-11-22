@@ -6,9 +6,8 @@ import { LLMAnswer } from './instructions/LLMAnswer';
 import { Action } from './instructions/Action';
 import { ActionDone } from './instructions/ActionDone';
 import { LLMProvider } from './llm-providers/LLMProvider';
-import { PromptCache } from './cache/PromptCache';
 import { OpenAIProvider } from './llm-providers/OpenAIProvider';
-import { kebabCase } from './helpers/string';
+import { FileCache } from './cache/FileCache';
 
 export abstract class AgentLooper<
   TProvider extends LLMProvider = LLMProvider
@@ -22,9 +21,8 @@ export abstract class AgentLooper<
   }): Promise<string>;
 
   constructor(options: Partial<AgentOptions<TProvider>> = {}) {
-    const promptCache = new PromptCache({
-      cacheEngine: options.cacheEngine,
-    });
+    const cacheEngine =
+      options.cacheEngine === undefined ? new FileCache() : options.cacheEngine;
 
     super({
       ...options,
@@ -32,7 +30,7 @@ export abstract class AgentLooper<
         options.llmProvider ||
         // that's why I "love" typescript
         (new OpenAIProvider({
-          cacheEngine: options.cacheEngine,
+          cacheEngine,
         }) as unknown as TProvider),
     });
 
