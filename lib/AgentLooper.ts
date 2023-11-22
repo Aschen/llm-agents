@@ -1,14 +1,14 @@
-import { PromptTemplate } from 'langchain/prompts';
+import { PromptTemplate } from "langchain/prompts";
 
-import { AgentParseError } from './AgentParseError';
-import { AgentOptions, AbstractAgent } from './AbstractAgent';
-import { LLMAnswer } from './instructions/LLMAnswer';
-import { Action } from './instructions/Action';
-import { ActionDone } from './instructions/ActionDone';
-import { LLMProvider } from './llm-providers/LLMProvider';
-import { PromptCache } from './cache/PromptCache';
-import { OpenAIProvider } from './llm-providers/OpenAIProvider';
-import { kebabCase } from './helpers/string';
+import { AgentParseError } from "./AgentParseError";
+import { AgentOptions, AbstractAgent } from "./AbstractAgent";
+import { LLMAnswer } from "./instructions/LLMAnswer";
+import { Action } from "./instructions/Action";
+import { ActionDone } from "./instructions/ActionDone";
+import { LLMProvider } from "./llm-providers/LLMProvider";
+import { PromptCache } from "./cache/PromptCache";
+import { OpenAIProvider } from "./llm-providers/OpenAIProvider";
+import { kebabCase } from "./helpers/string";
 
 export abstract class AgentLooper<
   TProvider extends LLMProvider = LLMProvider
@@ -47,7 +47,7 @@ export abstract class AgentLooper<
     }
   }
 
-  async run() {
+  async run(): Promise<any> {
     let done: boolean = false;
     let feedbackSteps: string[][] = [];
     let previousCost = 0;
@@ -78,12 +78,12 @@ export abstract class AgentLooper<
             message: error.message,
             answerKey: this.promptCache.cacheKey({
               agentName: this.name,
-              type: 'answer',
+              type: "answer",
               prompt,
             }),
             promptKey: this.promptCache.cacheKey({
               agentName: this.name,
-              type: 'prompt',
+              type: "prompt",
               prompt,
             }),
           });
@@ -107,7 +107,7 @@ export abstract class AgentLooper<
           })
         );
 
-        if (feedback.type === 'error') {
+        if (feedback.type === "error") {
           error = true;
           this.actionsErrorCount++;
         } else {

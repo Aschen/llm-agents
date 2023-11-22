@@ -1,13 +1,13 @@
-import { PromptTemplate } from 'langchain/prompts';
+import { PromptTemplate } from "langchain/prompts";
 
-import { CacheEngine } from './cache/CacheEngine';
-import { LLMAnswer } from './instructions/LLMAnswer';
-import { Instruction } from './instructions/Instruction';
-import { Action, ActionFeedback } from './instructions/Action';
+import { CacheEngine } from "./cache/CacheEngine";
+import { LLMAnswer } from "./instructions/LLMAnswer";
+import { Instruction } from "./instructions/Instruction";
+import { Action, ActionFeedback } from "./instructions/Action";
 
-import { PromptCache } from './cache/PromptCache';
-import { LLMProvider } from './llm-providers/LLMProvider';
-import { kebabCase } from './helpers/string';
+import { PromptCache } from "./cache/PromptCache";
+import { LLMProvider } from "./llm-providers/LLMProvider";
+import { kebabCase } from "./helpers/string";
 
 export type AgentOptions<TProvider extends LLMProvider> = {
   instructions?: Instruction[];
@@ -30,7 +30,6 @@ export abstract class AbstractAgent<TProvider extends LLMProvider> {
 
   protected verbose: boolean;
   protected llmProvider: TProvider;
-  protected promptCache: PromptCache;
 
   protected abstract template: PromptTemplate;
 
@@ -48,6 +47,11 @@ export abstract class AbstractAgent<TProvider extends LLMProvider> {
 
   get name() {
     return kebabCase(this.constructor.name);
+  }
+
+  protected get promptCache(): PromptCache {
+    // @ts-ignore
+    return this.llmProvider.promptCache;
   }
 
   constructor({
@@ -84,9 +88,9 @@ export abstract class AbstractAgent<TProvider extends LLMProvider> {
     for (const line of lines) {
       const trimmedLine = line.trim();
 
-      if (trimmedLine.startsWith('<Action')) {
+      if (trimmedLine.startsWith("<Action")) {
         insideActionBlock = true;
-        currentAnswer = { name: '', parameters: {} };
+        currentAnswer = { name: "", parameters: {} };
 
         const nameMatch = trimmedLine.match(/name="([^"]+)"/);
         if (nameMatch) {
@@ -99,31 +103,31 @@ export abstract class AbstractAgent<TProvider extends LLMProvider> {
         if (inlineParameters) {
           for (const inlineParameter of inlineParameters) {
             const [key, value] = inlineParameter
-              .replace('parameter:', '')
-              .split('=');
-            currentAnswer.parameters[key.replace(/"/g, '')] = value.replace(
+              .replace("parameter:", "")
+              .split("=");
+            currentAnswer.parameters[key.replace(/"/g, "")] = value.replace(
               /"/g,
-              ''
+              ""
             );
           }
         }
 
-        if (trimmedLine.endsWith('/>')) {
+        if (trimmedLine.endsWith("/>")) {
           insideActionBlock = false;
           if (currentAnswer.name) {
             answers.push(currentAnswer);
           }
           currentAnswer = null;
         }
-      } else if (trimmedLine.startsWith('</Action>')) {
+      } else if (trimmedLine.startsWith("</Action>")) {
         insideActionBlock = false;
         if (currentAnswer && currentAnswer.name) {
           answers.push(currentAnswer);
         }
         currentAnswer = null;
-      } else if (insideActionBlock && trimmedLine.startsWith('<Parameter')) {
+      } else if (insideActionBlock && trimmedLine.startsWith("<Parameter")) {
         insideParameterBlock = true;
-        currentParameterValue = '';
+        currentParameterValue = "";
         const nameMatch = trimmedLine.match(/name="([^"]+)"/);
         if (nameMatch) {
           currentParameterName = nameMatch[1];
@@ -138,7 +142,7 @@ export abstract class AbstractAgent<TProvider extends LLMProvider> {
       } else if (
         insideActionBlock &&
         insideParameterBlock &&
-        trimmedLine.startsWith('</Parameter>')
+        trimmedLine.startsWith("</Parameter>")
       ) {
         insideParameterBlock = false;
         if (
@@ -153,13 +157,13 @@ export abstract class AbstractAgent<TProvider extends LLMProvider> {
         currentParameterValue = null;
       } else if (insideParameterBlock) {
         if (currentParameterValue !== null) {
-          currentParameterValue += currentParameterValue ? '\n' + line : line;
+          currentParameterValue += currentParameterValue ? "\n" + line : line;
         }
       }
     }
 
     if (answers.length === 0) {
-      throw new Error('Incorrect answer format. Cannot parse answers.');
+      throw new Error("Incorrect answer format. Cannot parse answers.");
     }
 
     for (const answer of answers) {
@@ -185,7 +189,7 @@ export abstract class AbstractAgent<TProvider extends LLMProvider> {
     if (!action) {
       return {
         message: `Action "${answer.name}" not found`,
-        type: 'error',
+        type: "error",
       };
     }
 
@@ -224,7 +228,7 @@ export abstract class AbstractAgent<TProvider extends LLMProvider> {
   protected describeInstructions(): string {
     return this.instructions
       .map((instruction) => instruction.describe)
-      .join('\n\n');
+      .join("\n\n");
   }
 
   protected describeFeedbackSteps({
@@ -236,7 +240,7 @@ export abstract class AbstractAgent<TProvider extends LLMProvider> {
 
     for (let i = 0; i < feedbackSteps.length; i++) {
       describedSteps.push(`<Step number="${i + 1}">
-  ${feedbackSteps[i].join('\n  ')}
+  ${feedbackSteps[i].join("\n  ")}
 </Step>`);
     }
 
@@ -256,7 +260,7 @@ export abstract class AbstractAgent<TProvider extends LLMProvider> {
   protected promptActionsBlock() {
     return `You can answer with the following actions:
 ${this.contentDelimiter({
-  name: 'ACTIONS LIST',
+  name: "ACTIONS LIST",
   content: this.describeInstructions(),
 })}
 ONLY ANSWER ACTION AS THEY ARE DEFINED OTHERWISE I CANNOT PARSE THEM`;
