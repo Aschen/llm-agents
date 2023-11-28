@@ -1,24 +1,24 @@
-import { OpenAI } from 'langchain/llms/openai';
+import { OpenAI } from "langchain/llms/openai";
 
-import { uuidv4 } from '../helpers/uuid';
+import { uuidv4 } from "../helpers/uuid";
 
-import { LLMProvider, LLMProviderListeners } from './LLMProvider';
-import { CacheEngine } from '../cache/CacheEngine';
-import { PromptCache } from '../cache/PromptCache';
+import { LLMProvider, LLMProviderListeners } from "./LLMProvider";
+import { CacheEngine } from "../cache/CacheEngine";
+import { PromptCache } from "../cache/PromptCache";
 
 export type OpenAIModels = keyof typeof OpenAIProvider.ModelsCost;
 
 export class OpenAIProvider implements LLMProvider {
   static ModelsCost = {
-    'gpt-4': {
+    "gpt-4": {
       input: 0.03,
       output: 0.06,
     },
-    'gpt-3.5-turbo-16k': {
+    "gpt-3.5-turbo-16k": {
       input: 0.003,
       output: 0.004,
     },
-    'gpt-4-1106-preview': {
+    "gpt-4-1106-preview": {
       input: 0.01,
       output: 0.03,
     },
@@ -47,7 +47,7 @@ export class OpenAIProvider implements LLMProvider {
 
   public async call({
     prompt,
-    model = 'gpt-4-1106-preview',
+    model = "gpt-4-1106-preview",
     temperature = 0.0,
     agentName,
   }: {
@@ -67,10 +67,10 @@ export class OpenAIProvider implements LLMProvider {
     const cacheKey = this.promptCache.cacheKey({
       agentName,
       prompt,
-      type: 'prompt',
+      type: "prompt",
     });
-    const inputCost = this.computeCost(prompt.length, model, 'input');
-    this.emit('prompt', {
+    const inputCost = this.computeCost(prompt.length, model, "input");
+    this.emit("prompt", {
       id,
       key: cacheKey,
       model,
@@ -84,11 +84,13 @@ export class OpenAIProvider implements LLMProvider {
       temperature,
     });
 
+    await this.promptCache.save({ agentName, prompt });
+
     const answer = await llm.call(prompt);
 
-    const outputCost = this.computeCost(answer.length, model, 'output');
+    const outputCost = this.computeCost(answer.length, model, "output");
 
-    this.emit('answer', {
+    this.emit("answer", {
       id,
       key: cacheKey,
       model,
@@ -96,7 +98,7 @@ export class OpenAIProvider implements LLMProvider {
       cost: outputCost,
     });
 
-    await this.promptCache.save({ agentName, prompt, answer });
+    await this.promptCache.save({ agentName, answer });
 
     return answer;
   }
@@ -126,7 +128,7 @@ export class OpenAIProvider implements LLMProvider {
   private computeCost(
     length: number,
     model: OpenAIModels,
-    type: 'input' | 'output'
+    type: "input" | "output"
   ): number {
     const tokens = length / 3;
     this.tokens[type] += tokens;

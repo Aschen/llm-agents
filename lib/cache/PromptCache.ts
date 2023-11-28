@@ -1,7 +1,7 @@
-import * as Path from 'node:path';
+import * as Path from "node:path";
 
-import { hashString } from '../helpers/hash';
-import { CacheEngine } from './CacheEngine';
+import { hashString } from "../helpers/hash";
+import { CacheEngine } from "./CacheEngine";
 
 export class PromptCache {
   private engine: CacheEngine | null;
@@ -10,7 +10,7 @@ export class PromptCache {
 
   constructor({
     cacheEngine,
-    cachePath = '.cache',
+    cachePath = ".cache",
   }: {
     cacheEngine?: CacheEngine;
     cachePath?: string;
@@ -25,7 +25,7 @@ export class PromptCache {
 
   public async get({
     prompt,
-    agentName = '',
+    agentName = "",
   }: {
     prompt: string;
     agentName?: string;
@@ -34,7 +34,7 @@ export class PromptCache {
       return null;
     }
 
-    const answerCacheKey = this.cacheKey({ agentName, type: 'answer', prompt });
+    const answerCacheKey = this.cacheKey({ agentName, type: "answer", prompt });
 
     if (await this.engine.has(answerCacheKey)) {
       console.log(`PromptCache: use cached answer ${answerCacheKey}`);
@@ -47,21 +47,33 @@ export class PromptCache {
   public async save({
     prompt,
     answer,
-    agentName = '',
+    agentName = "",
   }: {
-    prompt: string;
-    answer: string;
+    prompt?: string;
+    answer?: string;
     agentName?: string;
   }): Promise<void> {
     if (!this.engine) {
       return;
     }
 
-    const answerCacheKey = this.cacheKey({ agentName, type: 'answer', prompt });
-    const promptCacheKey = this.cacheKey({ agentName, type: 'prompt', prompt });
+    if (answer) {
+      const answerCacheKey = this.cacheKey({
+        agentName,
+        type: "answer",
+        prompt,
+      });
+      await this.engine.set(answerCacheKey, answer);
+    }
 
-    await this.engine.set(promptCacheKey, prompt);
-    await this.engine.set(answerCacheKey, answer);
+    if (prompt) {
+      const promptCacheKey = this.cacheKey({
+        agentName,
+        type: "prompt",
+        prompt,
+      });
+      await this.engine.set(promptCacheKey, prompt);
+    }
   }
 
   public cacheKey({
@@ -70,7 +82,7 @@ export class PromptCache {
     agentName,
   }: {
     prompt: string;
-    type: 'prompt' | 'answer';
+    type: "prompt" | "answer";
     agentName: string;
   }): string {
     const promptHash = hashString(prompt);
