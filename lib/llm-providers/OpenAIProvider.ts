@@ -98,7 +98,7 @@ export class OpenAIProvider implements LLMProvider {
       cost: outputCost,
     });
 
-    await this.promptCache.save({ agentName, answer });
+    await this.promptCache.save({ agentName, prompt, answer });
 
     return answer;
   }

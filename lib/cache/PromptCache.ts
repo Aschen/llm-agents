@@ -49,7 +49,7 @@ export class PromptCache {
     answer,
     agentName = "",
   }: {
-    prompt?: string;
+    prompt: string;
     answer?: string;
     agentName?: string;
   }): Promise<void> {
@@ -63,15 +63,15 @@ export class PromptCache {
         type: "answer",
         prompt,
       });
-      await this.engine.set(answerCacheKey, answer);
-    }
 
-    if (prompt) {
+      await this.engine.set(answerCacheKey, answer);
+    } else {
       const promptCacheKey = this.cacheKey({
         agentName,
         type: "prompt",
         prompt,
       });
+
       await this.engine.set(promptCacheKey, prompt);
     }
   }
