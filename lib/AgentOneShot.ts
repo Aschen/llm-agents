@@ -1,10 +1,10 @@
-import { PromptTemplate } from 'langchain/prompts';
+import { PromptTemplate } from "langchain/prompts";
 
-import { AgentOptions, AbstractAgent } from './AbstractAgent';
-import { LLMAnswer } from './instructions/LLMAnswer';
-import { AgentParseError } from './AgentParseError';
-import { OpenAIProvider } from './llm-providers/OpenAIProvider';
-import { LLMProvider } from './llm-providers/LLMProvider';
+import { AbstractAgent, AgentOptions } from "./AbstractAgent";
+import { AgentParseError } from "./AgentParseError";
+import { LLMAnswer } from "./instructions/LLMAnswer";
+import { LLMProvider } from "./llm-providers/LLMProvider";
+import { OpenAIProvider } from "./llm-providers/OpenAIProvider";
 
 export abstract class AgentOneShot<
   TLLMAnswer extends LLMAnswer = LLMAnswer,
@@ -25,7 +25,7 @@ export abstract class AgentOneShot<
   }
 
   async run({
-    modelName = 'gpt-4-1106-preview',
+    modelName = "gpt-4-1106-preview",
     temperature = 0.0,
   }: {
     modelName?: string;
@@ -51,12 +51,12 @@ export abstract class AgentOneShot<
             message: error.message,
             answerKey: this.promptCache.cacheKey({
               agentName: this.name,
-              type: 'answer',
+              type: "answer",
               prompt,
             }),
             promptKey: this.promptCache.cacheKey({
               agentName: this.name,
-              type: 'prompt',
+              type: "prompt",
               prompt,
             }),
           });
@@ -77,7 +77,7 @@ export abstract class AgentOneShot<
 
       const feedback = await this.executeAction({ answer });
 
-      if (feedback.type === 'error') {
+      if (feedback.type === "error") {
         this.actionsErrorCount++;
       } else {
         this.actionsCount++;
